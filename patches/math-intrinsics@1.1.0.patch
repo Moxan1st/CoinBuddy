@@ -1,0 +1,12 @@
+diff --git a/sign.js b/sign.js
+index 1111111..2222222 100644
+--- a/sign.js
++++ b/sign.js
+@@ -1,6 +1,6 @@
+ 'use strict';
+ 
+-var $isNaN = require('./isNaN');
++var $isNaN = require('./isNaN.js');
+ 
+ /** @type {import('./sign')} */
+ module.exports = function sign(number) {
