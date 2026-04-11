@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { WagmiProvider, useAccount, useConnect, useDisconnect, useSendTransaction } from "wagmi"
+import { useSendCalls } from "wagmi/experimental"
 import { wagmiConfig } from "~lib/wagmi-config"
 
 const queryClient = new QueryClient()
@@ -19,6 +20,7 @@ function PopupInner() {
   const { connectAsync, connectors } = useConnect()
   const { disconnectAsync } = useDisconnect()
   const { sendTransactionAsync } = useSendTransaction()
+  const { sendCallsAsync } = useSendCalls()
   const [status, setStatus] = useState("")
   const [pendingTx, setPendingTx] = useState<any>(null)
   const [txSigning, setTxSigning] = useState(false)
@@ -79,13 +81,30 @@ function PopupInner() {
       } catch (_) { /* 可能本来就没连接 */ }
       await connectAsync({ connector: preferredConnector })
 
-      const hash = await sendTransactionAsync({
-        to: payload.to as `0x${string}`,
-        data: (payload.data || "0x") as `0x${string}`,
-        value: payload.value ? BigInt(payload.value) : 0n,
-        chainId: payload.chainId ? Number(payload.chainId) : undefined,
-        gas: payload.gasLimit ? BigInt(payload.gasLimit) : undefined
-      })
+      let hash: string
+
+      if (payload.isBatch && payload.calls?.length > 0) {
+        // EIP-5792 batch execution (Coinbase Smart Wallet native support)
+        console.log(`[Popup] Sending batch: ${payload.calls.length} calls via EIP-5792`)
+        const batchId = await sendCallsAsync({
+          calls: payload.calls.map((c: any) => ({
+            to: c.to as `0x${string}`,
+            data: (c.data || "0x") as `0x${string}`,
+            value: c.value ? BigInt(c.value) : 0n,
+          })),
+          chainId: payload.chainId ? Number(payload.chainId) : undefined,
+        } as any)
+        hash = String(batchId)
+      } else {
+        // Single transaction (existing flow)
+        hash = await sendTransactionAsync({
+          to: payload.to as `0x${string}`,
+          data: (payload.data || "0x") as `0x${string}`,
+          value: payload.value ? BigInt(payload.value) : 0n,
+          chainId: payload.chainId ? Number(payload.chainId) : undefined,
+          gas: payload.gasLimit ? BigInt(payload.gasLimit) : undefined,
+        })
+      }
 
       await chrome.storage.local.set({
         coinbuddy_tx_result: { success: true, hash }
@@ -127,10 +146,17 @@ function PopupInner() {
           padding: "10px 14px", background: "rgba(251,191,36,0.15)",
           borderRadius: 10, border: "1px solid rgba(251,191,36,0.4)", marginBottom: 12
         }}>
-          <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>Pending Transaction</div>
-          <div style={{ fontSize: 12, color: "#fbbf24" }}>
-            To: {pendingTx.to?.slice(0, 10)}... | Chain: {pendingTx.chainId || "?"}
+          <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>
+            {pendingTx.isBatch ? `Smart Batch (${pendingTx.calls?.length || 0} steps)` : "Pending Transaction"}
           </div>
+          <div style={{ fontSize: 12, color: "#fbbf24" }}>
+            {pendingTx.isBatch
+              ? `${pendingTx.calls?.length || 0} atomic calls | Chain: ${pendingTx.chainId || "?"}`
+              : `To: ${pendingTx.to?.slice(0, 10)}... | Chain: ${pendingTx.chainId || "?"}`}
+          </div>
+          {pendingTx.erc8211 && (
+            <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2 }}>ERC-8211 Smart Batching</div>
+          )}
           {!txSigning && (
             <button onClick={() => handleSignTx(pendingTx)} style={{
               marginTop: 8, width: "100%", padding: "8px", background: "rgba(16,185,129,0.3)",

@@ -54,13 +54,17 @@ interface Intent {
 }
 
 interface IntentResult {
-  type: "chat" | "invest" | "confirm" | "cancel" | "compare" | "vault_detail" | "portfolio" | "chains" | "protocols" | "stablecoin" | "cross_deposit" | "token_price" | "swap"
+  type: "chat" | "invest" | "confirm" | "cancel" | "compare" | "vault_detail" | "portfolio" | "chains" | "protocols" | "stablecoin" | "cross_deposit" | "token_price" | "swap" | "composite"
   chatReply?: string
   investParams?: Intent
   compareParams?: { chainId?: number; asset?: string; sortBy?: string; limit?: number }
   vaultParams?: { chainId: number; address: string }
   tokenParams?: { symbol: string; chainId?: number }
   swapParams?: { fromToken: string; toToken: string; amount: string; amountDecimals: string; chainId: number }
+  compositeSteps?: Array<{
+    action: "swap" | "deposit" | "bridge"
+    params: Record<string, any>
+  }>
 }
 
 interface Vault {
@@ -375,6 +379,7 @@ Do NOT classify as chat just because of voice misrecognition.
 12. **cross_deposit** — Master explicitly says from chain A to chain B ("deposit USDC from Ethereum to Base vault"), same as invest but fromChain ≠ toChain.
 13. **token_price** — Master asks about a token's price/market cap ("BTC price", "how much is ETH").
 14. **swap** — Master wants to swap/exchange one token for another WITHOUT depositing into a vault ("swap 1 USDT to USDC", "convert ETH to USDC", "exchange 100 USDT for USDC on Arbitrum").
+15. **composite** — Master wants MULTIPLE actions in one atomic transaction: "swap USDT to USDC and deposit into best vault", "convert ETH to USDC then find highest yield", "swap and stake in one go". Extract each step with its params. When step 2 amount depends on step 1 output, use "ALL_FROM_PREV" as amount. This enables ERC-8211 Smart Batching — all steps execute atomically in one signature.
 
 ## Parameter Mapping
 - amountDecimals: USDC/USDT/DAI → "000000" (6 digits), ETH/WETH/WBTC → "000000000000000000" (18 digits)
@@ -400,7 +405,9 @@ cross_deposit: {"type": "cross_deposit", "investParams": {"amount": "500", "amou
 token_price: {"type": "token_price", "tokenParams": {"symbol": "BTC"}}
 token_price (with chain): {"type": "token_price", "tokenParams": {"symbol": "ETH", "chainId": 8453}}
 swap: {"type": "swap", "swapParams": {"fromToken": "USDT", "toToken": "USDC", "amount": "1", "amountDecimals": "000000", "chainId": 1}}
-swap (on specific chain): {"type": "swap", "swapParams": {"fromToken": "ETH", "toToken": "USDC", "amount": "0.1", "amountDecimals": "000000000000000000", "chainId": 8453}}`
+swap (on specific chain): {"type": "swap", "swapParams": {"fromToken": "ETH", "toToken": "USDC", "amount": "0.1", "amountDecimals": "000000000000000000", "chainId": 8453}}
+composite (swap+deposit): {"type": "composite", "compositeSteps": [{"action": "swap", "params": {"fromToken": "USDT", "toToken": "USDC", "amount": "1", "amountDecimals": "000000", "chainId": 8453}}, {"action": "deposit", "params": {"searchAsset": "USDC", "toChainConfig": [8453], "amount": "ALL_FROM_PREV"}}]}
+composite (swap+deposit, no chain): {"type": "composite", "compositeSteps": [{"action": "swap", "params": {"fromToken": "USDT", "toToken": "USDC", "amount": "100", "amountDecimals": "000000", "chainId": 1}}, {"action": "deposit", "params": {"searchAsset": "USDC", "toChainConfig": [8453, 42161, 10], "amount": "ALL_FROM_PREV"}}]}`
 
 const REPLY_SYSTEM_PROMPT = `You are CoinBuddy, a brilliant cyber hacker-cat DeFi butler.
 
@@ -1012,6 +1019,180 @@ The user spoke in ${lang === "zh" ? "Chinese" : "English"}. Reply in that langua
     }
     const volHint = vol > 1e8 ? "(active)" : vol > 1e7 ? "(moderate)" : "(low)"
     return `Meow~ ${displaySymbol} market snapshot:\n\n\u25B6 Price: ${priceStr}\n\u25B6 Market Cap: ${mcap}\n\u25B6 24h Volume: ${vol24h} ${volHint}\n\n\u26A0 Data from LI.FI - historical charts not available.\nTo see ${token.symbol} vault APY trends (1d/7d/30d), just ask "show me ${token.symbol} vault details"!`
+  },
+
+  // ━━━ 12. Composite Batch Builder (ERC-8211 Smart Batching) ━━━━━━
+  async buildComposableBatch(
+    steps: Array<{ action: string; params: Record<string, any> }>,
+    userWallet: string,
+    lang: "zh" | "en" = "en"
+  ): Promise<{ calls: Array<{ to: string; data: string; value: string }>; preview: string; erc8211Data?: any } | null> {
+    console.log(`[Brain] Building composite batch: ${steps.length} steps`)
+
+    const calls: Array<{ to: string; data: string; value: string }> = []
+    const stepDescriptions: Array<{ action: string; description: string }> = []
+    let prevOutputEstimate: string | null = null // estimated output from previous step
+
+    for (let i = 0; i < steps.length; i++) {
+      const step = steps[i]
+      console.log(`[Brain] Composite step ${i + 1}: ${step.action}`, step.params)
+
+      if (step.action === "swap") {
+        const { fromToken, toToken, amount, amountDecimals, chainId } = step.params
+        const rawAmount = amount + (amountDecimals || "")
+
+        const fromAddr = TOKEN_ADDRESSES[fromToken?.toUpperCase()]?.[chainId]
+        const toAddr = TOKEN_ADDRESSES[toToken?.toUpperCase()]?.[chainId]
+        if (!fromAddr || !toAddr) {
+          console.warn(`[Brain] Composite swap: token address not found for ${fromToken}/${toToken} on chain ${chainId}`)
+          return null
+        }
+
+        const params = new URLSearchParams({
+          fromChain: String(chainId),
+          toChain: String(chainId),
+          fromToken: fromAddr,
+          toToken: toAddr,
+          fromAddress: userWallet,
+          toAddress: userWallet,
+          fromAmount: rawAmount,
+        })
+        const headers: Record<string, string> = { accept: "application/json" }
+        if (LIFI_API_KEY) headers["x-lifi-api-key"] = LIFI_API_KEY
+
+        try {
+          const res = await fetch(`${COMPOSER_API}/v1/quote?${params}`, { headers, signal: AbortSignal.timeout(30000) })
+          const data = await res.json()
+          if (!data.transactionRequest) {
+            console.warn("[Brain] Composite swap: no transactionRequest", data.message || data.error)
+            return null
+          }
+
+          calls.push({
+            to: data.transactionRequest.to,
+            data: data.transactionRequest.data || "0x",
+            value: data.transactionRequest.value || "0",
+          })
+
+          // Estimate output for next step
+          const estimate = data.estimate?.toAmount || data.estimate?.toAmountMin || rawAmount
+          prevOutputEstimate = estimate
+
+          const chainName = CHAIN_NAMES[chainId] || `Chain ${chainId}`
+          const minReceived = data.estimate?.toAmountMin
+            ? `${(Number(data.estimate.toAmountMin) / Math.pow(10, data.estimate?.toToken?.decimals || 6)).toFixed(4)}`
+            : "?"
+          stepDescriptions.push({
+            action: "swap",
+            description: lang === "zh"
+              ? `Swap ${amount} ${fromToken} -> ${toToken} (${chainName}, min ${minReceived})`
+              : `Swap ${amount} ${fromToken} -> ${toToken} (${chainName}, min ${minReceived})`,
+          })
+        } catch (err: any) {
+          console.error("[Brain] Composite swap failed:", err.message)
+          return null
+        }
+      } else if (step.action === "deposit") {
+        const { searchAsset, toChainConfig, amount } = step.params
+
+        // Find optimal vault
+        const preferredChains = toChainConfig || [8453, 42161, 10]
+        const asset = searchAsset?.toUpperCase() || "USDC"
+        const vault = await this.fetchOptimalVault(preferredChains, asset)
+        if (!vault) {
+          console.warn("[Brain] Composite deposit: no vault found")
+          return null
+        }
+
+        // Determine amount: use previous step output or explicit amount
+        let depositRawAmount: string
+        if (amount === "ALL_FROM_PREV" && prevOutputEstimate) {
+          depositRawAmount = prevOutputEstimate
+        } else if (amount && amount !== "ALL_FROM_PREV") {
+          const decimals = step.params.amountDecimals || "000000"
+          depositRawAmount = amount + decimals
+        } else {
+          console.warn("[Brain] Composite deposit: no amount available")
+          return null
+        }
+
+        const fromChain = step.params.fromChain || vault.chainId
+        const underlyingSymbol = vault.underlyingTokens[0]?.symbol || ""
+        const fromToken = resolveFromToken(underlyingSymbol, fromChain, vault.underlyingTokens[0]?.address)
+
+        const params = new URLSearchParams({
+          fromChain: String(fromChain),
+          toChain: String(vault.chainId),
+          fromToken,
+          toToken: vault.address,
+          fromAddress: userWallet,
+          toAddress: userWallet,
+          fromAmount: depositRawAmount,
+        })
+        const headers: Record<string, string> = { accept: "application/json" }
+        if (LIFI_API_KEY) headers["x-lifi-api-key"] = LIFI_API_KEY
+
+        try {
+          const res = await fetch(`${COMPOSER_API}/v1/quote?${params}`, { headers, signal: AbortSignal.timeout(30000) })
+          const data = await res.json()
+          if (!data.transactionRequest) {
+            console.warn("[Brain] Composite deposit: no transactionRequest", data.message || data.error)
+            return null
+          }
+
+          calls.push({
+            to: data.transactionRequest.to,
+            data: data.transactionRequest.data || "0x",
+            value: data.transactionRequest.value || "0",
+          })
+
+          const chainName = CHAIN_NAMES[vault.chainId] || `Chain ${vault.chainId}`
+          const apy = vault.analytics?.apy?.total?.toFixed(2) || "?"
+          stepDescriptions.push({
+            action: "deposit",
+            description: lang === "zh"
+              ? `Deposit -> ${vault.protocol.name} (${chainName}, APY ${apy}%)`
+              : `Deposit -> ${vault.protocol.name} (${chainName}, APY ${apy}%)`,
+          })
+        } catch (err: any) {
+          console.error("[Brain] Composite deposit failed:", err.message)
+          return null
+        }
+      }
+    }
+
+    if (calls.length === 0) return null
+
+    // Build preview text
+    const { describeBatch } = await import("~lib/composable")
+    const preview = describeBatch(stepDescriptions, lang)
+
+    // Also build ERC-8211 representation for demonstration
+    let erc8211Data: any = null
+    try {
+      const { txToComposableExecution, buildSwapThenDepositComposable, encodeExecuteComposable } = await import("~lib/composable")
+      if (calls.length === 2 && steps[0]?.action === "swap" && steps[1]?.action === "deposit") {
+        const minOutput = prevOutputEstimate ? BigInt(prevOutputEstimate) * 95n / 100n : 0n // 5% slippage
+        const composableExecutions = buildSwapThenDepositComposable(calls[0], calls[1], minOutput)
+        erc8211Data = {
+          executions: composableExecutions,
+          calldata: encodeExecuteComposable(composableExecutions),
+          note: "ERC-8211 encoded — ready for executeComposable() when wallets support it",
+        }
+      } else {
+        const composableExecutions = calls.map((c) => txToComposableExecution(c))
+        erc8211Data = {
+          executions: composableExecutions,
+          calldata: encodeExecuteComposable(composableExecutions),
+          note: "ERC-8211 simple batch encoding",
+        }
+      }
+    } catch (e: any) {
+      console.warn("[Brain] ERC-8211 encoding failed (non-critical):", e.message)
+    }
+
+    console.log(`[Brain] Composite batch ready: ${calls.length} calls`)
+    return { calls, preview, erc8211Data }
   },
 
   // ━━━ 工具方法 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

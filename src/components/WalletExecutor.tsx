@@ -14,6 +14,7 @@ export default function WalletExecutor() {
       const payload = (e as CustomEvent).detail
       try {
         // 存交易数据到 chrome.storage，popup 会读取并签名
+        // isBatch + calls 会原样传递给 popup 以触发 EIP-5792 batch 路径
         await chrome.storage.local.set({ coinbuddy_pending_tx: payload })
 
         // 打开 popup 进行签名

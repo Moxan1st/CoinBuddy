@@ -154,7 +154,7 @@ function CoinBuddyInner() {
               updated[i] = { role: "bot", text: msg.text }
               return updated
             }
-            if (updated[i].role === "bot" && /^[🔍📊🔎💼🔗🏛️🪙💰🏦✍️🔧]/.test(updated[i].text)) {
+            if (updated[i].role === "bot" && /^[🔍📊🔎💼🔗🏛️🪙💰🏦✍️🔧⚡🔄]/.test(updated[i].text)) {
               updated[i] = { role: "bot", text: msg.text }
               return updated
             }
@@ -226,7 +226,7 @@ function CoinBuddyInner() {
                 for (let i = updated.length - 1; i >= 0; i--) {
                   if (updated[i].role === "bot" && (
                     updated[i].text === "🤔 思考中..." ||
-                    /^[🔍📊🔎💼🔗🏛️🪙💰🏦✍️🔧]/.test(updated[i].text)
+                    /^[🔍📊🔎💼🔗🏛️🪙💰🏦✍️🔧⚡🔄]/.test(updated[i].text)
                   )) {
                     if (response?.status === "success") {
                       updated[i] = { role: "bot", text: response.reply, txPayload: response.transactionPayload }
@@ -329,7 +329,7 @@ function CoinBuddyInner() {
           for (let i = updated.length - 1; i >= 0; i--) {
             if (updated[i].role === "bot" && (
               updated[i].text === "🤔 思考中..." ||
-              /^[🔍📊🔎💼🔗🏛️🪙💰🏦✍️🔧]/.test(updated[i].text)
+              /^[🔍📊🔎💼🔗🏛️🪙💰🏦✍️🔧⚡🔄]/.test(updated[i].text)
             )) {
               if (response?.status === "success") {
                 updated[i] = { role: "bot", text: response.reply, txPayload: response.transactionPayload }

@@ -53,7 +53,9 @@ export default function ChatBubble({
               <button
                 className="cb-msg-tx-btn"
                 onClick={() => onConfirmTx(msg.txPayload!)}>
-                Confirm & Sign with Passkey
+                {(msg.txPayload as any)?.isBatch
+                  ? `Confirm ${(msg.txPayload as any)?.calls?.length || 2} Steps & Sign`
+                  : "Confirm & Sign with Passkey"}
               </button>
             )}
           </div>

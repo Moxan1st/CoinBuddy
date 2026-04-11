@@ -386,6 +386,67 @@ async function handleUserAsk(payload: any, rawSendResponse: (r: any) => void, ta
     return
   }
 
+  // ── 组合操作 composite（ERC-8211 Smart Batching）──
+  if (analysis.type === "composite") {
+    pushHistory("user", userText)
+    const steps = analysis.compositeSteps || []
+
+    if (steps.length < 2) {
+      const reply = L(lang, "\u55B5\uFF1F\u8FD9\u4E2A\u64CD\u4F5C\u53EA\u6709\u4E00\u6B65\uFF0C\u4E0D\u9700\u8981\u7EC4\u5408\u6267\u884C\u5440\uFF5E", "Meow? This only has one step, no need for batch execution~")
+      pushHistory("model", reply)
+      sendResponse({ status: "success", petState: "idle", reply, transactionPayload: null })
+      return
+    }
+
+    const effectiveWallet = walletAddress || pendingWalletAddress
+    if (!effectiveWallet) {
+      const reply = L(lang,
+        "\u55B5\uFF5E\u8FD9\u662F\u4E2A\u591A\u6B65\u64CD\u4F5C\uFF0C\u4F46\u4F60\u8FD8\u6CA1\u8FDE\u94B1\u5305\u5462\uFF01\u672C\u732B\u5E2E\u4F60\u5F39\u51FA\u6765\uFF5E",
+        "Meow~ This is a multi-step operation, but you haven't connected a wallet! Let me open it for you~")
+      pushHistory("model", reply)
+      sendResponse({ status: "success", petState: "idle", reply, transactionPayload: null, openWallet: true })
+      return
+    }
+
+    // Progress for each step
+    for (let i = 0; i < steps.length; i++) {
+      const stepName = steps[i].action === "swap" ? "swap" : steps[i].action === "deposit" ? "deposit" : steps[i].action
+      sendProgress(tabId, L(lang,
+        `\u26A1 Step ${i + 1}/${steps.length}: \u6B63\u5728\u6784\u5EFA ${stepName} \u4EA4\u6613...`,
+        `\u26A1 Step ${i + 1}/${steps.length}: Building ${stepName} transaction...`))
+    }
+
+    const result = await CoinBuddyBrain.buildComposableBatch(steps, effectiveWallet, lang)
+
+    if (!result) {
+      const reply = L(lang,
+        "\u55B5\u2026\u7EC4\u5408\u4EA4\u6613\u6784\u5EFA\u5931\u8D25\u4E86\uFF0C\u53EF\u80FD\u67D0\u4E2A\u6B65\u9AA4\u7684\u4EE3\u5E01\u5BF9\u4E0D\u53EF\u7528\u3002\u8BD5\u8BD5\u5206\u5F00\u6267\u884C\uFF1F",
+        "Meow... batch build failed. A token pair in one of the steps might not be available. Try executing them separately?")
+      pushHistory("model", reply)
+      sendResponse({ status: "success", petState: "idle", reply, transactionPayload: null })
+      return
+    }
+
+    const batchFooter = L(lang,
+      "\n\n\u{1F43E} Powered by ERC-8211 Smart Batching\n\u4E00\u952E\u7B7E\u540D\u5373\u53EF\u539F\u5B50\u6267\u884C\u4EE5\u4E0A\u6240\u6709\u6B65\u9AA4\uFF01",
+      "\n\n\u{1F43E} Powered by ERC-8211 Smart Batching\nSign once to atomically execute all steps!")
+    const reply = result.preview + batchFooter
+
+    pushHistory("model", reply)
+    sendResponse({
+      status: "success",
+      petState: "idle",
+      reply,
+      transactionPayload: {
+        isBatch: true,
+        calls: result.calls,
+        chainId: steps[0]?.params?.chainId || 8453,
+        erc8211: result.erc8211Data,
+      }
+    })
+    return
+  }
+
   // ── 跨链存款 cross_deposit（同 invest，fromChain 明确不同于 toChain） ──
   if (analysis.type === "cross_deposit") {
     // Falls through to invest logic below
