@@ -405,7 +405,7 @@ Do NOT classify as chat just because of voice misrecognition.
 12. **cross_deposit** — Master explicitly says from chain A to chain B ("deposit USDC from Ethereum to Base vault"), same as invest but fromChain ≠ toChain.
 13. **token_price** — Master asks about a token's price/market cap ("BTC price", "how much is ETH").
 14. **swap** — Master wants to swap/exchange one token for another WITHOUT depositing into a vault ("swap 1 USDT to USDC", "convert ETH to USDC", "exchange 100 USDT for USDC on Arbitrum").
-15. **composite** — Master wants MULTIPLE actions in one atomic transaction: "swap USDT to USDC and deposit into best vault", "convert ETH to USDC then find highest yield", "swap and stake in one go". Extract each step with its params. When step 2 amount depends on step 1 output, use "ALL_FROM_PREV" as amount. This enables ERC-8211 Smart Batching — all steps execute atomically in one signature.
+15. **composite** — Master wants MULTIPLE actions in one atomic transaction: "swap USDT to USDC and deposit into best vault", "convert ETH to USDC then find highest yield", "swap and stake in one go". Extract each step with its params. When step 2 amount depends on step 1 output, use "ALL_FROM_PREV" as amount. ★ DEFAULT chainId to 8453 (Base) unless master explicitly says another chain. This enables ERC-8211 Smart Batching — all steps execute atomically in one signature.
 
 ## Parameter Mapping
 - amountDecimals: USDC/USDT/DAI → "000000" (6 digits), ETH/WETH/WBTC → "000000000000000000" (18 digits)
@@ -430,10 +430,10 @@ stablecoin: {"type": "stablecoin", "compareParams": {"limit": 5}}
 cross_deposit: {"type": "cross_deposit", "investParams": {"amount": "500", "amountDecimals": "000000", "fromChain": 1, "toChainConfig": [8453], "searchAsset": "USDC"}}
 token_price: {"type": "token_price", "tokenParams": {"symbol": "BTC"}}
 token_price (with chain): {"type": "token_price", "tokenParams": {"symbol": "ETH", "chainId": 8453}}
-swap: {"type": "swap", "swapParams": {"fromToken": "USDT", "toToken": "USDC", "amount": "1", "amountDecimals": "000000", "chainId": 1}}
+swap: {"type": "swap", "swapParams": {"fromToken": "USDT", "toToken": "USDC", "amount": "1", "amountDecimals": "000000", "chainId": 8453}}
 swap (on specific chain): {"type": "swap", "swapParams": {"fromToken": "ETH", "toToken": "USDC", "amount": "0.1", "amountDecimals": "000000000000000000", "chainId": 8453}}
 composite (swap+deposit): {"type": "composite", "compositeSteps": [{"action": "swap", "params": {"fromToken": "USDT", "toToken": "USDC", "amount": "1", "amountDecimals": "000000", "chainId": 8453}}, {"action": "deposit", "params": {"searchAsset": "USDC", "toChainConfig": [8453], "amount": "ALL_FROM_PREV"}}]}
-composite (swap+deposit, no chain): {"type": "composite", "compositeSteps": [{"action": "swap", "params": {"fromToken": "USDT", "toToken": "USDC", "amount": "100", "amountDecimals": "000000", "chainId": 1}}, {"action": "deposit", "params": {"searchAsset": "USDC", "toChainConfig": [8453, 42161, 10], "amount": "ALL_FROM_PREV"}}]}`
+composite (swap+deposit, no chain specified): {"type": "composite", "compositeSteps": [{"action": "swap", "params": {"fromToken": "USDT", "toToken": "USDC", "amount": "100", "amountDecimals": "000000", "chainId": 8453}}, {"action": "deposit", "params": {"searchAsset": "USDC", "toChainConfig": [8453], "amount": "ALL_FROM_PREV"}}]}`
 
 const REPLY_SYSTEM_PROMPT = `You are CoinBuddy, a brilliant cyber hacker-cat DeFi butler.
 
