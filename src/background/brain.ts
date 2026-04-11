@@ -1,6 +1,29 @@
 // CoinBuddy Brain v2 - 完整智能中枢
 // 职责：Gemini 意图路由、LI.FI 金库搜索与缓存、Composer 交易构建、自然语言回复生成
 
+import {
+  describeBatch,
+  txToComposableExecution,
+  buildSwapThenDepositComposable,
+  encodeExecuteComposable,
+} from "~lib/composable"
+import { encodeFunctionData } from "viem"
+
+// ERC-20 approve ABI fragment
+const ERC20_APPROVE_ABI = [
+  {
+    name: "approve",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "spender", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [{ type: "bool" }],
+  },
+] as const
+const MAX_UINT256 = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+
 // ─── 常量 & 配置 ───────────────────────────────────────────────
 const EARN_API = "https://earn.li.fi"
 const COMPOSER_API = "https://li.quest"
@@ -99,12 +122,15 @@ const TOKEN_ADDRESSES: Record<string, Record<number, string>> = {
     8453: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
     42161: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
     10: "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+    56: "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d",
     137: "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
   },
   USDT: {
     1: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+    8453: "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2",
     42161: "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
     10: "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
+    56: "0x55d398326f99059fF775485246999027B3197955",
     137: "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
   },
   ETH: {
@@ -712,7 +738,44 @@ ${contextText.slice(0, 800)}
           chainId: data.transactionRequest.chainId,
           value: data.transactionRequest.value
         })
-        return data.transactionRequest
+        
+        const txTarget = data.transactionRequest.to
+        const txData = data.transactionRequest.data
+        const txValue = data.transactionRequest.value || "0x0"
+        const chainId = data.transactionRequest.chainId
+
+        const calls = []
+        
+        // 如果是原生 ETH，那么不需要授权。用全零地址来验证
+        const isNativeEth = fromToken === "0x0000000000000000000000000000000000000000"
+        
+        if (!isNativeEth) {
+           // 构造 ERC20 approve 参数: 0x095ea7b3 + spender(32 bytes) + amount(32 bytes)
+           const spenderHex = txTarget.replace("0x", "").padStart(64, "0")
+           // 直接给满无穷大授权，彻底解决带小数尾数精度转换导致的 TRANSFER_FROM 差值报错
+           const amountHex = "f".repeat(64)
+           const approveData = "0x095ea7b3" + spenderHex + amountHex
+           
+           calls.push({
+             to: fromToken,
+             data: approveData,
+             value: "0" // approve 时无需带 native 价值
+           })
+           console.log(`[Brain] Batch included ERC20 Approve to: ${fromToken}`)
+        }
+        
+        // 再压入 LI.FI 的业务调用
+        calls.push({
+          to: txTarget,
+          data: txData,
+          value: String(BigInt(txValue))
+        })
+
+        return {
+          isBatch: true,
+          chainId: chainId,
+          calls: calls
+        }
       }
 
       console.warn("[Brain] No transactionRequest in response:", JSON.stringify(data).slice(0, 300))
@@ -1032,6 +1095,7 @@ The user spoke in ${lang === "zh" ? "Chinese" : "English"}. Reply in that langua
     const calls: Array<{ to: string; data: string; value: string }> = []
     const stepDescriptions: Array<{ action: string; description: string }> = []
     let prevOutputEstimate: string | null = null // estimated output from previous step
+    let batchChainId: number | null = null // EIP-5792 batch must be single-chain
 
     for (let i = 0; i < steps.length; i++) {
       const step = steps[i]
@@ -1056,6 +1120,9 @@ The user spoke in ${lang === "zh" ? "Chinese" : "English"}. Reply in that langua
           fromAddress: userWallet,
           toAddress: userWallet,
           fromAmount: rawAmount,
+          slippage: "0.005",          // 0.5% slippage tolerance for batch safety
+          integrator: "coinbuddy",
+          allowDestinationCall: "true",
         })
         const headers: Record<string, string> = { accept: "application/json" }
         if (LIFI_API_KEY) headers["x-lifi-api-key"] = LIFI_API_KEY
@@ -1068,15 +1135,42 @@ The user spoke in ${lang === "zh" ? "Chinese" : "English"}. Reply in that langua
             return null
           }
 
+          // Prepend ERC-20 approve for the actual spender (approvalAddress from LI.FI)
+          // NOTE: approvalAddress != transactionRequest.to — the router delegates to an internal contract
+          const spender = data.estimate?.approvalAddress || data.transactionRequest.to
+          if (fromAddr !== "0x0000000000000000000000000000000000000000" && spender) {
+            const approveData = encodeFunctionData({
+              abi: ERC20_APPROVE_ABI,
+              functionName: "approve",
+              args: [spender as `0x${string}`, BigInt(MAX_UINT256)],
+            })
+            calls.push({
+              to: fromAddr,
+              data: approveData,
+              value: "0",
+            })
+            console.log(`[Brain] Added approve: ${fromToken} -> spender ${spender} (approvalAddress)`)
+          }
+
           calls.push({
             to: data.transactionRequest.to,
             data: data.transactionRequest.data || "0x",
             value: data.transactionRequest.value || "0",
           })
 
+          // Track chain for batch (EIP-5792 = single chain)
+          batchChainId = chainId
+
           // Estimate output for next step
-          const estimate = data.estimate?.toAmount || data.estimate?.toAmountMin || rawAmount
-          prevOutputEstimate = estimate
+          // Use toAmountMin first (conservative) to avoid overestimating swap output in atomic batch.
+          // If deposit amount is higher than actual swapped balance, transferFrom can fail.
+          const estimateRaw = data.estimate?.toAmountMin || data.estimate?.toAmount || rawAmount
+          try {
+            const buffered = (BigInt(estimateRaw) * 995n) / 1000n
+            prevOutputEstimate = buffered > 0n ? buffered.toString() : estimateRaw
+          } catch {
+            prevOutputEstimate = estimateRaw
+          }
 
           const chainName = CHAIN_NAMES[chainId] || `Chain ${chainId}`
           const minReceived = data.estimate?.toAmountMin
@@ -1095,8 +1189,8 @@ The user spoke in ${lang === "zh" ? "Chinese" : "English"}. Reply in that langua
       } else if (step.action === "deposit") {
         const { searchAsset, toChainConfig, amount } = step.params
 
-        // Find optimal vault
-        const preferredChains = toChainConfig || [8453, 42161, 10]
+        // Find optimal vault — in a batch, must match the swap chain
+        const preferredChains = batchChainId ? [batchChainId] : (toChainConfig || [8453, 42161, 10])
         const asset = searchAsset?.toUpperCase() || "USDC"
         const vault = await this.fetchOptimalVault(preferredChains, asset)
         if (!vault) {
@@ -1116,7 +1210,7 @@ The user spoke in ${lang === "zh" ? "Chinese" : "English"}. Reply in that langua
           return null
         }
 
-        const fromChain = step.params.fromChain || vault.chainId
+        const fromChain = batchChainId || step.params.fromChain || vault.chainId
         const underlyingSymbol = vault.underlyingTokens[0]?.symbol || ""
         const fromToken = resolveFromToken(underlyingSymbol, fromChain, vault.underlyingTokens[0]?.address)
 
@@ -1128,6 +1222,9 @@ The user spoke in ${lang === "zh" ? "Chinese" : "English"}. Reply in that langua
           fromAddress: userWallet,
           toAddress: userWallet,
           fromAmount: depositRawAmount,
+          slippage: "0.005",
+          integrator: "coinbuddy",
+          allowDestinationCall: "true",
         })
         const headers: Record<string, string> = { accept: "application/json" }
         if (LIFI_API_KEY) headers["x-lifi-api-key"] = LIFI_API_KEY
@@ -1138,6 +1235,23 @@ The user spoke in ${lang === "zh" ? "Chinese" : "English"}. Reply in that langua
           if (!data.transactionRequest) {
             console.warn("[Brain] Composite deposit: no transactionRequest", data.message || data.error)
             return null
+          }
+
+          // Prepend ERC-20 approve for actual spender (approvalAddress from LI.FI)
+          // NOTE: approvalAddress may differ from transactionRequest.to
+          const depositSpender = data.estimate?.approvalAddress || data.transactionRequest.to
+          if (fromToken !== "0x0000000000000000000000000000000000000000" && depositSpender) {
+            const approveData = encodeFunctionData({
+              abi: ERC20_APPROVE_ABI,
+              functionName: "approve",
+              args: [depositSpender as `0x${string}`, BigInt(MAX_UINT256)],
+            })
+            calls.push({
+              to: fromToken,
+              data: approveData,
+              value: "0",
+            })
+            console.log(`[Brain] Added deposit approve: ${underlyingSymbol} -> spender ${depositSpender} (approvalAddress)`)
           }
 
           calls.push({
@@ -1164,25 +1278,22 @@ The user spoke in ${lang === "zh" ? "Chinese" : "English"}. Reply in that langua
     if (calls.length === 0) return null
 
     // Build preview text
-    const { describeBatch } = await import("~lib/composable")
     const preview = describeBatch(stepDescriptions, lang)
 
     // Also build ERC-8211 representation for demonstration
     let erc8211Data: any = null
     try {
-      const { txToComposableExecution, buildSwapThenDepositComposable, encodeExecuteComposable } = await import("~lib/composable")
+      // NOTE: Only keep hex calldata — BigInt in execution structs can't be serialized by Chrome messaging
       if (calls.length === 2 && steps[0]?.action === "swap" && steps[1]?.action === "deposit") {
-        const minOutput = prevOutputEstimate ? BigInt(prevOutputEstimate) * 95n / 100n : 0n // 5% slippage
+        const minOutput = prevOutputEstimate ? BigInt(prevOutputEstimate) * 95n / 100n : 0n
         const composableExecutions = buildSwapThenDepositComposable(calls[0], calls[1], minOutput)
         erc8211Data = {
-          executions: composableExecutions,
           calldata: encodeExecuteComposable(composableExecutions),
           note: "ERC-8211 encoded — ready for executeComposable() when wallets support it",
         }
       } else {
         const composableExecutions = calls.map((c) => txToComposableExecution(c))
         erc8211Data = {
-          executions: composableExecutions,
           calldata: encodeExecuteComposable(composableExecutions),
           note: "ERC-8211 simple batch encoding",
         }

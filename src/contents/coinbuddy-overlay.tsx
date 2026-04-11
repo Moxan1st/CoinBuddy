@@ -1,13 +1,10 @@
 import type { PlasmoCSConfig, PlasmoGetShadowHostId, PlasmoGetStyle } from "plasmo"
 import { useState, useEffect, useCallback, useRef } from "react"
 import confetti from "canvas-confetti"
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { WagmiProvider } from "wagmi"
 
 import PetAvatar from "~components/PetAvatar"
 import ChatBubble from "~components/ChatBubble"
 import WalletExecutor from "~components/WalletExecutor"
-import { wagmiConfig } from "~lib/wagmi-config"
 import { startSniffer } from "~lib/sniffer"
 import type { PetState, ChatMessage } from "~lib/pet-state"
 import { COINBUDDY_STYLES } from "~components/styles"
@@ -27,8 +24,6 @@ export const getStyle: PlasmoGetStyle = () => {
   style.textContent = COINBUDDY_STYLES
   return style
 }
-
-const queryClient = new QueryClient()
 
 /** Fire confetti burst at the pet's screen position */
 function fireCelebration() {
@@ -59,13 +54,7 @@ function fireCelebration() {
 
 /** Outer shell: provides WagmiProvider + QueryClient context */
 function CoinBuddyApp() {
-  return (
-    <WagmiProvider config={wagmiConfig}>
-      <QueryClientProvider client={queryClient}>
-        <CoinBuddyInner />
-      </QueryClientProvider>
-    </WagmiProvider>
-  )
+  return <CoinBuddyInner />
 }
 
 /** Inner component */

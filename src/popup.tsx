@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { WagmiProvider, useAccount, useConnect, useDisconnect, useSendTransaction } from "wagmi"
+import { WagmiProvider, useAccount, useConnect, useDisconnect, useSendTransaction, useSwitchChain } from "wagmi"
 import { useSendCalls } from "wagmi/experimental"
 import { wagmiConfig } from "~lib/wagmi-config"
 
@@ -21,6 +21,7 @@ function PopupInner() {
   const { disconnectAsync } = useDisconnect()
   const { sendTransactionAsync } = useSendTransaction()
   const { sendCallsAsync } = useSendCalls()
+  const { switchChainAsync } = useSwitchChain()
   const [status, setStatus] = useState("")
   const [pendingTx, setPendingTx] = useState<any>(null)
   const [txSigning, setTxSigning] = useState(false)
@@ -80,19 +81,28 @@ function PopupInner() {
         await disconnectAsync()
       } catch (_) { /* 可能本来就没连接 */ }
       await connectAsync({ connector: preferredConnector })
+      const targetChainId = payload.chainId ? Number(payload.chainId) : undefined
+      if (targetChainId) {
+        try {
+          await switchChainAsync({ chainId: targetChainId })
+        } catch (switchErr: any) {
+          throw new Error(`Please switch wallet network to chain ${targetChainId} first: ${switchErr?.shortMessage || switchErr?.message || "switch failed"}`)
+        }
+      }
 
       let hash: string
 
       if (payload.isBatch && payload.calls?.length > 0) {
-        // EIP-5792 batch execution (Coinbase Smart Wallet native support)
-        console.log(`[Popup] Sending batch: ${payload.calls.length} calls via EIP-5792`)
+        const mappedCalls = payload.calls.map((c: any) => ({
+          to: c.to as `0x${string}`,
+          data: (c.data || "0x") as `0x${string}`,
+          value: c.value ? BigInt(c.value) : 0n,
+        }))
+        setStatus("Sending atomic smart batch...")
+        console.log(`[Popup] Sending full atomic batch: ${mappedCalls.length} calls via EIP-5792`)
         const batchId = await sendCallsAsync({
-          calls: payload.calls.map((c: any) => ({
-            to: c.to as `0x${string}`,
-            data: (c.data || "0x") as `0x${string}`,
-            value: c.value ? BigInt(c.value) : 0n,
-          })),
-          chainId: payload.chainId ? Number(payload.chainId) : undefined,
+          calls: mappedCalls,
+          chainId: targetChainId,
         } as any)
         hash = String(batchId)
       } else {
@@ -101,7 +111,7 @@ function PopupInner() {
           to: payload.to as `0x${string}`,
           data: (payload.data || "0x") as `0x${string}`,
           value: payload.value ? BigInt(payload.value) : 0n,
-          chainId: payload.chainId ? Number(payload.chainId) : undefined,
+          chainId: targetChainId,
           gas: payload.gasLimit ? BigInt(payload.gasLimit) : undefined,
         })
       }
@@ -113,10 +123,14 @@ function PopupInner() {
       setPendingTx(null)
       chrome.storage.local.remove("coinbuddy_pending_tx")
     } catch (err: any) {
+      console.error("[Popup] TX Error full:", JSON.stringify(err, Object.getOwnPropertyNames(err), 2))
+      console.error("[Popup] TX Error details:", err?.details || err?.cause?.message || err?.cause?.details || "none")
       const rawMsg = err?.shortMessage || err?.message || "Transaction rejected"
       const lower = String(rawMsg).toLowerCase()
       const friendly = lower.includes("insufficient funds")
         ? "余额不足：当前钱包不足以支付金额+Gas，请先充值后再试。"
+        : lower.includes("transfer_from_failed")
+          ? "批量模拟失败（TRANSFER_FROM_FAILED）：这不是 403/CSP 问题，通常是钱包 bundler 在原子模拟时看不到授权状态。已尝试自动先授权再执行；若仍失败请先单独授权后重试。"
         : rawMsg
 
       await chrome.storage.local.set({
