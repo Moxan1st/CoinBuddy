@@ -1189,10 +1189,17 @@ The user spoke in ${lang === "zh" ? "Chinese" : "English"}. Reply in that langua
       } else if (step.action === "deposit") {
         const { searchAsset, toChainConfig, amount } = step.params
 
-        // Find optimal vault — in a batch, must match the swap chain
-        const preferredChains = batchChainId ? [batchChainId] : (toChainConfig || [8453, 42161, 10])
+        // Find optimal vault — prefer same chain (atomic batch), fallback to cross-chain
         const asset = searchAsset?.toUpperCase() || "USDC"
-        const vault = await this.fetchOptimalVault(preferredChains, asset)
+        // First try same chain as swap for atomic execution
+        let vault = batchChainId ? await this.fetchOptimalVault([batchChainId], asset) : null
+        let isCrossChain = false
+        if (!vault) {
+          // Fallback: search all chains — LI.FI handles bridging internally
+          const allChains = toChainConfig?.length ? toChainConfig : [8453, 42161, 10, 1]
+          vault = await this.fetchOptimalVault(allChains, asset)
+          isCrossChain = vault ? vault.chainId !== batchChainId : false
+        }
         if (!vault) {
           console.warn("[Brain] Composite deposit: no vault found")
           return null
@@ -1262,11 +1269,10 @@ The user spoke in ${lang === "zh" ? "Chinese" : "English"}. Reply in that langua
 
           const chainName = CHAIN_NAMES[vault.chainId] || `Chain ${vault.chainId}`
           const apy = vault.analytics?.apy?.total?.toFixed(2) || "?"
+          const crossTag = isCrossChain ? " [cross-chain]" : ""
           stepDescriptions.push({
             action: "deposit",
-            description: lang === "zh"
-              ? `Deposit -> ${vault.protocol.name} (${chainName}, APY ${apy}%)`
-              : `Deposit -> ${vault.protocol.name} (${chainName}, APY ${apy}%)`,
+            description: `Deposit -> ${vault.protocol.name} (${chainName}, APY ${apy}%)${crossTag}`,
           })
         } catch (err: any) {
           console.error("[Brain] Composite deposit failed:", err.message)
