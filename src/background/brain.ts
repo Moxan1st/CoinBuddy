@@ -405,7 +405,7 @@ Do NOT classify as chat just because of voice misrecognition.
 12. **cross_deposit** — Master explicitly says from chain A to chain B ("deposit USDC from Ethereum to Base vault"), same as invest but fromChain ≠ toChain.
 13. **token_price** — Master asks about a token's price/market cap ("BTC price", "how much is ETH").
 14. **swap** — Master wants to swap/exchange one token for another WITHOUT depositing into a vault ("swap 1 USDT to USDC", "convert ETH to USDC", "exchange 100 USDT for USDC on Arbitrum").
-15. **composite** — Master wants MULTIPLE actions in one atomic transaction: "swap USDT to USDC and deposit into best vault", "convert ETH to USDC then find highest yield", "swap and stake in one go". Extract each step with its params. When step 2 amount depends on step 1 output, use "ALL_FROM_PREV" as amount. ★ DEFAULT chainId to 8453 (Base) unless master explicitly says another chain. This enables ERC-8211 Smart Batching — all steps execute atomically in one signature.
+15. **composite** — Master wants MULTIPLE actions in one atomic transaction: "swap USDT to USDC and deposit into best vault", "convert ETH to USDC then find highest yield", "swap and stake in one go". Extract each step with its params. When step 2 amount depends on step 1 output, use "ALL_FROM_PREV" as amount. ★ DEFAULT chainId to 8453 (Base) unless master explicitly says another chain. "binance"/"biance"/"bnb" → chainId 56 (BSC). This enables ERC-8211 Smart Batching — all steps execute atomically in one signature.
 
 ## Parameter Mapping
 - amountDecimals: USDC/USDT/DAI → "000000" (6 digits), ETH/WETH/WBTC → "000000000000000000" (18 digits)
