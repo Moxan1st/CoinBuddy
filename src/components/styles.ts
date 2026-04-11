@@ -247,9 +247,14 @@ export const COINBUDDY_STYLES = `
   cursor: pointer;
   transition: transform 0.15s, box-shadow 0.15s;
 }
-.cb-msg-tx-btn:hover {
+.cb-msg-tx-btn:hover:not(:disabled) {
   transform: scale(1.03);
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+.cb-msg-tx-btn:disabled {
+  background: rgba(107, 114, 128, 0.3);
+  cursor: default;
+  opacity: 0.6;
 }
 .cb-chat-input-row {
   display: flex;

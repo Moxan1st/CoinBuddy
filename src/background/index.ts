@@ -428,8 +428,8 @@ async function handleUserAsk(payload: any, rawSendResponse: (r: any) => void, ta
     }
 
     const batchFooter = L(lang,
-      "\n\n\u{1F43E} Powered by ERC-8211 Smart Batching\n\u4E00\u952E\u7B7E\u540D\u5373\u53EF\u539F\u5B50\u6267\u884C\u4EE5\u4E0A\u6240\u6709\u6B65\u9AA4\uFF01",
-      "\n\n\u{1F43E} Powered by ERC-8211 Smart Batching\nSign once to atomically execute all steps!")
+      "\n\n\u{1F43E} ERC-8211 Composable Encoding | EIP-5792 Atomic Execution\n\u4E00\u952E\u7B7E\u540D\u5373\u53EF\u539F\u5B50\u6267\u884C\u4EE5\u4E0A\u6240\u6709\u6B65\u9AA4\uFF01",
+      "\n\n\u{1F43E} ERC-8211 Composable Encoding | EIP-5792 Atomic Execution\nSign once to atomically execute all steps!")
     const reply = result.preview + batchFooter
 
     pushHistory("model", reply)

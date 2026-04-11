@@ -52,7 +52,13 @@ function PopupInner() {
     return coinbase || connectors[0]
   }
 
-  // 不自动签名 — 让用户手动点 "Sign & Send"，确保 connector 完全就绪
+  // Auto-sign when popup opens with a pending tx
+  useEffect(() => {
+    if (pendingTx && !txSigning) {
+      const t = setTimeout(() => handleSignTx(pendingTx), 300)
+      return () => clearTimeout(t)
+    }
+  }, [pendingTx])
 
   const handleConnect = async (connector: typeof connectors[0]) => {
     try {
@@ -169,9 +175,13 @@ function PopupInner() {
               : `To: ${pendingTx.to?.slice(0, 10)}... | Chain: ${pendingTx.chainId || "?"}`}
           </div>
           {pendingTx.erc8211 && (
-            <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2 }}>ERC-8211 Smart Batching</div>
+            <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2 }}>ERC-8211 Compatible | EIP-5792 Execution</div>
           )}
-          {!txSigning && (
+          {txSigning ? (
+            <div style={{ marginTop: 8, textAlign: "center", fontSize: 12, opacity: 0.7 }}>
+              Signing in progress...
+            </div>
+          ) : (
             <button onClick={() => handleSignTx(pendingTx)} style={{
               marginTop: 8, width: "100%", padding: "8px", background: "rgba(16,185,129,0.3)",
               border: "1px solid rgba(16,185,129,0.5)", borderRadius: 8,

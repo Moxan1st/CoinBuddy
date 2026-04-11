@@ -8,6 +8,7 @@ import WalletExecutor from "~components/WalletExecutor"
 import { startSniffer } from "~lib/sniffer"
 import type { PetState, ChatMessage } from "~lib/pet-state"
 import { COINBUDDY_STYLES } from "~components/styles"
+import { getUserLang, L } from "~lib/i18n"
 
 // Plasmo content script config - inject on all pages
 export const config: PlasmoCSConfig = {
@@ -139,7 +140,7 @@ function CoinBuddyInner() {
           const updated = [...prev]
           // 查找最后一条进度消息（以特定 emoji 开头的 bot 消息）
           for (let i = updated.length - 1; i >= 0; i--) {
-            if (updated[i].role === "bot" && updated[i].text === "🤔 思考中...") {
+            if (updated[i].role === "bot" && /^🤔/.test(updated[i].text)) {
               updated[i] = { role: "bot", text: msg.text }
               return updated
             }
@@ -160,8 +161,9 @@ function CoinBuddyInner() {
 
   // Send recorded audio: Step 1 transcribe → show text → Step 2 ask AI
   const sendAudioToGemini = useCallback((blob: Blob) => {
+    const lang = getUserLang(messages)
     setPetState("thinking")
-    setMessages((prev) => [...prev, { role: "user", text: "🎤 识别中..." }])
+    setMessages((prev) => [...prev, { role: "user", text: L(lang, "🎤 识别中...", "🎤 Listening...") }])
     setChatOpen(true)
 
     const reader = new FileReader()
@@ -181,15 +183,15 @@ function CoinBuddyInner() {
             setMessages((prev) => {
               const updated = [...prev]
               for (let i = updated.length - 1; i >= 0; i--) {
-                if (updated[i].role === "user" && updated[i].text === "🎤 识别中...") {
-                  updated[i] = { role: "user", text: "🎤 [没听清]" }
+                if (updated[i].role === "user" && /^🎤/.test(updated[i].text)) {
+                  updated[i] = { role: "user", text: L(lang, "🎤 [没听清]", "🎤 [unclear]") }
                   break
                 }
               }
               return updated
             })
             setPetState("idle")
-            setMessages((prev) => [...prev, { role: "bot", text: "喵…没听清你说什么，再说一遍？" }])
+            setMessages((prev) => [...prev, { role: "bot", text: L(lang, "喵…没听清你说什么，再说一遍？", "Meow... I didn't catch that, could you say it again?") }])
             return
           }
 
@@ -197,30 +199,29 @@ function CoinBuddyInner() {
           setMessages((prev) => {
             const updated = [...prev]
             for (let i = updated.length - 1; i >= 0; i--) {
-              if (updated[i].role === "user" && updated[i].text === "🎤 识别中...") {
+              if (updated[i].role === "user" && /^🎤/.test(updated[i].text)) {
                 updated[i] = { role: "user", text: transcript }
                 break
               }
             }
-            return [...updated, { role: "bot", text: "🤔 思考中..." }]
+            return [...updated, { role: "bot", text: L(lang, "🤔 思考中...", "🤔 Thinking...") }]
           })
 
           // Step 2: 用文字走正常对话流程
           chrome.runtime.sendMessage(
             { action: "USER_ASK", payload: { text: transcript, walletAddress } },
             (response) => {
-              // 替换 "思考中..." 或进度消息为实际回复
               setMessages((prev) => {
                 const updated = [...prev]
                 for (let i = updated.length - 1; i >= 0; i--) {
                   if (updated[i].role === "bot" && (
-                    updated[i].text === "🤔 思考中..." ||
+                    /^🤔/.test(updated[i].text) ||
                     /^[🔍📊🔎💼🔗🏛️🪙💰🏦✍️🔧⚡🔄]/.test(updated[i].text)
                   )) {
                     if (response?.status === "success") {
                       updated[i] = { role: "bot", text: response.reply, txPayload: response.transactionPayload }
                     } else {
-                      updated[i] = { role: "bot", text: "喵…出了点小问题，再试一次？" }
+                      updated[i] = { role: "bot", text: L(lang, "喵…出了点小问题，再试一次？", "Meow... Something went wrong, try again?") }
                     }
                     break
                   }
@@ -237,7 +238,7 @@ function CoinBuddyInner() {
       )
     }
     reader.readAsDataURL(blob)
-  }, [walletAddress])
+  }, [walletAddress, messages])
 
   // Voice input: directly use MediaRecorder in content script
   const handleVoiceInput = useCallback(async () => {
@@ -279,16 +280,17 @@ function CoinBuddyInner() {
       setIsRecording(true)
     } catch (err: any) {
       console.error("[CoinBuddy] Mic error:", err)
+      const lang = getUserLang(messages)
       setIsRecording(false)
       setChatOpen(true)
       setMessages((prev) => [...prev, {
         role: "bot",
         text: err.name === "NotAllowedError"
-          ? "喵～需要麦克风权限才能语音输入哦！请在浏览器地址栏左边允许麦克风。"
-          : "喵～录音出了问题，双击我用键盘聊吧！"
+          ? L(lang, "喵～需要麦克风权限才能语音输入哦！请在浏览器地址栏左边允许麦克风。", "Meow~ I need microphone permission for voice input! Please allow it in the browser address bar.")
+          : L(lang, "喵～录音出了问题，双击我用键盘聊吧！", "Meow~ Recording had an issue, double-click me to type instead!")
       }])
     }
-  }, [isRecording, sendAudioToGemini])
+  }, [isRecording, sendAudioToGemini, messages])
 
   // Drag pet
   const handleDragMove = useCallback((dx: number, dy: number) => {
@@ -305,7 +307,8 @@ function CoinBuddyInner() {
   }, [petState])
 
   const handleSend = useCallback((text: string) => {
-    setMessages((prev) => [...prev, { role: "user", text }, { role: "bot", text: "🤔 思考中..." }])
+    const lang = getUserLang([...messages, { role: "user", text }])
+    setMessages((prev) => [...prev, { role: "user", text }, { role: "bot", text: L(lang, "🤔 思考中...", "🤔 Thinking...") }])
     setPetState("thinking")
 
     chrome.runtime.sendMessage(
@@ -314,25 +317,23 @@ function CoinBuddyInner() {
         // 替换进度消息为最终回复
         setMessages((prev) => {
           const updated = [...prev]
-          // 找到最后一条进度/思考中消息并替换
           for (let i = updated.length - 1; i >= 0; i--) {
             if (updated[i].role === "bot" && (
-              updated[i].text === "🤔 思考中..." ||
+              /^🤔/.test(updated[i].text) ||
               /^[🔍📊🔎💼🔗🏛️🪙💰🏦✍️🔧⚡🔄]/.test(updated[i].text)
             )) {
               if (response?.status === "success") {
                 updated[i] = { role: "bot", text: response.reply, txPayload: response.transactionPayload }
               } else {
-                updated[i] = { role: "bot", text: "喵…出了点小问题，再试一次？" }
+                updated[i] = { role: "bot", text: L(lang, "喵…出了点小问题，再试一次？", "Meow... Something went wrong, try again?") }
               }
               return updated
             }
           }
-          // Fallback: 追加
           if (response?.status === "success") {
             return [...prev, { role: "bot", text: response.reply, txPayload: response.transactionPayload }]
           }
-          return [...prev, { role: "bot", text: "喵…出了点小问题，再试一次？" }]
+          return [...prev, { role: "bot", text: L(lang, "喵…出了点小问题，再试一次？", "Meow... Something went wrong, try again?") }]
         })
         setPetState("idle")
         if (response?.openWallet) {
@@ -340,13 +341,14 @@ function CoinBuddyInner() {
         }
       }
     )
-  }, [walletAddress])
+  }, [walletAddress, messages])
 
   const handleConfirmTx = useCallback((payload: Record<string, unknown>) => {
+    const lang = getUserLang(messages)
     if (!walletAddress) {
       setMessages((prev) => [
         ...prev,
-        { role: "bot", text: "喵～你还没连接钱包呢！先帮你打开钱包连接窗口～" }
+        { role: "bot", text: L(lang, "喵～你还没连接钱包呢！先帮你打开钱包连接窗口～", "Meow~ You haven't connected a wallet! Let me open it for you~") }
       ])
       chrome.runtime.sendMessage({ action: "OPEN_POPUP" })
       return
@@ -354,33 +356,52 @@ function CoinBuddyInner() {
     setPetState("thinking")
     setMessages((prev) => [
       ...prev,
-      { role: "bot", text: "正在准备交易…请用 Passkey 指纹认证～" }
+      { role: "bot", text: L(lang, "正在准备交易…请在钱包中确认～", "Preparing transaction... Please confirm in your wallet~") }
     ])
     window.dispatchEvent(
       new CustomEvent("coinbuddy:execute-tx", { detail: payload })
     )
-  }, [walletAddress])
+  }, [walletAddress, messages])
 
   // Listen for tx completion
   useEffect(() => {
     const onTxDone = ((e: CustomEvent) => {
+      const lang = getUserLang(messages)
       if (e.detail.success) {
         setPetState("done")
-        setMessages((prev) => [
-          ...prev,
-          { role: "bot", text: `交易确认啦！Hash: ${e.detail.hash?.slice(0, 10)}...` }
-        ])
+        setMessages((prev) => {
+          const updated = [...prev]
+          for (let i = updated.length - 1; i >= 0; i--) {
+            if (updated[i].txPayload && !updated[i].txCompleted) {
+              updated[i] = { ...updated[i], txCompleted: true }
+              break
+            }
+          }
+          return [...updated, {
+            role: "bot",
+            text: L(lang, `交易确认啦！Hash: ${e.detail.hash?.slice(0, 10)}...`, `Transaction confirmed! Hash: ${e.detail.hash?.slice(0, 10)}...`)
+          }]
+        })
       } else {
         setPetState("idle")
-        setMessages((prev) => [
-          ...prev,
-          { role: "bot", text: `交易失败了：${e.detail.error}` }
-        ])
+        setMessages((prev) => {
+          const updated = [...prev]
+          for (let i = updated.length - 1; i >= 0; i--) {
+            if (updated[i].txPayload && !updated[i].txCompleted) {
+              updated[i] = { ...updated[i], txCompleted: true }
+              break
+            }
+          }
+          return [...updated, {
+            role: "bot",
+            text: L(lang, `交易失败了：${e.detail.error}`, `Transaction failed: ${e.detail.error}`)
+          }]
+        })
       }
     }) as EventListener
     window.addEventListener("coinbuddy:tx-result", onTxDone)
     return () => window.removeEventListener("coinbuddy:tx-result", onTxDone)
-  }, [])
+  }, [messages])
 
   return (
     <div className="cb-root" style={{ right: petPos.right, bottom: petPos.bottom }}>
@@ -397,7 +418,7 @@ function CoinBuddyInner() {
         onDoubleClick={handleToggleChat}
         onDragMove={handleDragMove}
       />
-      {isRecording && <div className="cb-recording-indicator">🎤 听你说...</div>}
+      {isRecording && <div className="cb-recording-indicator">{L(getUserLang(messages), "🎤 听你说...", "🎤 Listening...")}</div>}
       <WalletExecutor />
     </div>
   )

@@ -5,4 +5,5 @@ export interface ChatMessage {
   role: "bot" | "user"
   text: string
   txPayload?: Record<string, unknown> & { isBatch?: boolean; calls?: any[] }
+  txCompleted?: boolean
 }
