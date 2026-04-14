@@ -1,6 +1,5 @@
 import Header from '@/components/Header'
 import Hero from '@/components/Hero'
-import Highlights from '@/components/Highlights'
 import Demo from '@/components/Demo'
 import WhyDifferent from '@/components/WhyDifferent'
 import HowToTry from '@/components/HowToTry'
@@ -14,7 +13,6 @@ export default function Page() {
         <Header />
         <main>
           <Hero />
-          <Highlights />
           <Demo />
           <WhyDifferent />
           <HowToTry />

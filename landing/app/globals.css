@@ -645,8 +645,13 @@ button {
   letter-spacing: -0.04em;
 }
 
+.hero-highlights .highlight-grid {
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
 .demo-grid {
-  grid-template-columns: 0.74fr 1.26fr;
+  grid-template-columns: 1fr 1fr;
   align-items: stretch;
 }
 

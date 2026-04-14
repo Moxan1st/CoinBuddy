@@ -14,7 +14,7 @@ import { getUserLang, L } from "~lib/i18n"
 
 // Plasmo content script config - inject on all pages
 export const config: PlasmoCSConfig = {
-  matches: ["https://twitter.com/*", "https://x.com/*"],
+  matches: ["https://*/*"],
   all_frames: false
 }
 

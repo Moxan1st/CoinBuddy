@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import { useI18n } from '@/lib/i18n'
 
 export default function HowToTry() {
@@ -16,19 +15,6 @@ export default function HowToTry() {
             <p>{copy.trySection.body}</p>
           </div>
 
-          <div className="try-status">
-            <Image
-              src="/cats/打哈欠伸懒腰.png"
-              alt="CoinBuddy lucky cat"
-              width={132}
-              height={132}
-              className="pixel-cat"
-            />
-            <div>
-              <h3>{copy.trySection.statusTitle}</h3>
-              <p>{copy.trySection.statusBody}</p>
-            </div>
-          </div>
         </div>
 
         <div className="try-cards">
