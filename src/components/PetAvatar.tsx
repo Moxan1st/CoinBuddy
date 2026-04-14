@@ -2,10 +2,10 @@ import { useRef, useCallback, useEffect, useState } from "react"
 import type { PetState } from "~lib/pet-state"
 
 // ── Asset imports (8 distinct cat poses) ──
-import imgIdle from "data-base64:~assets/coinbuddy-idle-lying.png"
-import imgAttentive from "data-base64:~assets/coinbuddy-attentive-tablet.png"
-import imgThinking from "data-base64:~assets/coinbuddy-thinking-upright.png"
-import imgExcited from "data-base64:~assets/coinbuddy-excited-jump.png"
+import imgIdle from "data-base64:~assets/coinbuddy-idle-rest.png"
+import imgAttentive from "data-base64:~assets/coinbuddy-thinking-upright.png"
+import imgThinking from "data-base64:~assets/coinbuddy-thinking-lick.png"
+import imgExcited from "data-base64:~assets/coinbuddy-attentive-tablet.png"
 import imgExecuting from "data-base64:~assets/coinbuddy-executing-walk.png"
 import imgWarning from "data-base64:~assets/coinbuddy-alert-puffed.png"
 import imgSuccess from "data-base64:~assets/coinbuddy-done-luckycat.png"
@@ -16,10 +16,10 @@ import imgWaiting from "data-base64:~assets/coinbuddy-waiting-curled.png"
  * Each state uses a unique cat image for instant visual distinction.
  */
 const POSE_MAP: Record<PetState, string> = {
-  idle:      imgIdle,       // 躺着 — relaxed lying down
-  attentive: imgAttentive,  // 玩平板 — looking at screen
-  thinking:  imgThinking,   // 站立呼吸 — upright, pondering
-  excited:   imgExcited,    // 跳跃 — leaping with joy
+  idle:      imgIdle,       // 趴着休息 — resting, lying down
+  attentive: imgAttentive,  // 端坐注视 — sitting upright, attentive
+  thinking:  imgThinking,   // 舔爪子 — licking paw, pondering
+  excited:   imgExcited,    // 玩平板 — found opportunity, checking screen
   executing: imgExecuting,  // 行走 — walking steadily
   warning:   imgWarning,    // 炸毛 — puffed up, alert
   success:   imgSuccess,    // 招财猫 — lucky cat wave

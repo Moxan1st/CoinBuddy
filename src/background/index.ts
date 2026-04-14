@@ -1393,6 +1393,26 @@ const handlerCtx: HandlerContext = {
     return
   }
 
+  if (analysis.type === "token_price") {
+    pushHistory("user", userText)
+    const symbol = analysis.tokenParams?.symbol || userText.match(/\b([A-Za-z]{2,10})\b/)?.[1] || "BTC"
+    const tokenData = await CoinBuddyBrain.fetchTokenPrice(symbol, analysis.tokenParams?.chainId || 1)
+    let reply: string
+    if (tokenData?.priceUSD) {
+      const price = Number(tokenData.priceUSD).toLocaleString(undefined, { maximumFractionDigits: 2 })
+      reply = L(lang,
+        `喵～${tokenData.symbol || symbol.toUpperCase()} 当前价格约 $${price} USD。`,
+        `Meow~ ${tokenData.symbol || symbol.toUpperCase()} is currently around $${price} USD.`)
+    } else {
+      reply = L(lang,
+        `喵…本猫暂时查不到 ${symbol.toUpperCase()} 的价格，换个代币名试试？`,
+        `Meow... I couldn't find the price for ${symbol.toUpperCase()} right now. Try a different token name?`)
+    }
+    pushHistory("model", reply)
+    sendResponse({ status: "success", petState: "idle", reply, transactionPayload: null })
+    return
+  }
+
   if (analysis.type === "connect_wallet") {
     pushHistory("user", userText)
     const botReply = analysis.chatReply || L(lang, "喵～正在为您连接钱包…请确认弹窗授权，本猫等您信号！", "Meow~ Connecting your wallet... Please confirm in the popup!")
