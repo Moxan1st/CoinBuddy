@@ -2,7 +2,6 @@ import Header from '@/components/Header'
 import Hero from '@/components/Hero'
 import Demo from '@/components/Demo'
 import WhyDifferent from '@/components/WhyDifferent'
-import HowToTry from '@/components/HowToTry'
 import Footer from '@/components/Footer'
 import { I18nProvider } from '@/lib/i18n'
 
@@ -15,7 +14,6 @@ export default function Page() {
           <Hero />
           <Demo />
           <WhyDifferent />
-          <HowToTry />
         </main>
         <Footer />
       </div>

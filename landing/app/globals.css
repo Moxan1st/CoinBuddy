@@ -32,8 +32,10 @@ body {
     radial-gradient(circle at top left, rgba(183, 227, 245, 0.55), transparent 26%),
     radial-gradient(circle at top right, rgba(222, 245, 251, 0.7), transparent 26%),
     linear-gradient(180deg, #f6fbff 0%, #edf5fd 38%, #e8f1fb 100%);
-  font-family: Arial, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family: "Space Grotesk", "PingFang SC", "Microsoft YaHei", sans-serif;
 }
+
+
 
 .sr-only {
   position: absolute;
@@ -246,6 +248,47 @@ button {
   align-items: start;
 }
 
+.hero-full {
+  display: flex;
+  flex-direction: column;
+  gap: 0.95rem;
+  padding: 1.5rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(232, 245, 252, 0.78));
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  border-radius: 26px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(8px);
+}
+
+.hero-lucky-cat {
+  display: inline-block;
+  vertical-align: middle;
+  width: 100px;
+  height: auto;
+  margin-left: 0.3rem;
+}
+
+.hero-full .hero-metrics {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.demo-right {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.demo-video-wrap {
+  border-radius: 14px;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+}
+
+.demo-video-wrap iframe {
+  width: 100%;
+  height: 100%;
+}
+
 .hero-copy,
 .hero-panel,
 .highlight-card,
@@ -287,9 +330,10 @@ button {
 
 .hero-title-text {
   margin: 0;
-  font-size: clamp(3.2rem, 7vw, 5rem);
-  line-height: 0.92;
-  letter-spacing: -0.08em;
+  font-family: "Press Start 2P", "PingFang SC", cursive;
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  line-height: 1.1;
+  letter-spacing: 0;
   font-weight: 900;
   color: var(--ink);
 }
@@ -299,12 +343,10 @@ button {
   border-radius: 20px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(228, 244, 250, 0.88));
   box-shadow: 0 14px 34px rgba(123, 173, 209, 0.2);
-  min-height: 220px;
 }
 
 .hero-subtitle {
   margin: 0;
-  max-width: 19ch;
   font-size: clamp(1.45rem, 2.6vw, 2.25rem);
   line-height: 1.14;
   font-weight: 900;
@@ -486,6 +528,8 @@ button {
 .scenario-messages {
   display: grid;
   gap: 0.85rem;
+  min-height: 420px;
+  align-content: start;
 }
 
 .chat-card {
@@ -620,19 +664,39 @@ button {
 
 .highlight-card {
   display: grid;
-  grid-template-columns: 170px minmax(0, 1fr);
+  grid-template-columns: 80px minmax(0, 1fr);
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .highlight-art {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 180px;
-  border-radius: 20px;
+  aspect-ratio: 1;
+  border-radius: 14px;
   background: rgba(244, 251, 255, 0.9);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.88);
+}
+
+.demo-highlights .highlight-card {
+  padding: 0.85rem 1rem;
+}
+
+.demo-highlights .highlight-copy h3 {
+  margin-top: 0.25rem;
+  font-size: 1.05rem;
+}
+
+.demo-highlights .highlight-kicker {
+  margin: 0 0 0.15rem;
+  font-size: 0.82rem;
+}
+
+.demo-highlights .highlight-copy p {
+  font-size: 0.85rem;
+  line-height: 1.45;
+  margin: 0.2rem 0 0;
 }
 
 .highlight-copy h3,
@@ -771,12 +835,13 @@ button {
 
 .difference-card {
   min-height: 240px;
-  display: grid;
-  align-content: start;
+  display: flex;
+  flex-direction: column;
 }
 
 .difference-meta {
-  margin-top: 1rem;
+  margin-top: auto;
+  padding-top: 1rem;
 }
 
 .difference-meta span {
@@ -916,7 +981,6 @@ html[lang='zh'] .demo-note-body {
   }
 
   .hero-visual-grid,
-  .highlight-card,
   .try-status {
     grid-template-columns: 1fr;
   }

@@ -7,6 +7,8 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6)
 ![Vercel](https://img.shields.io/badge/Vercel-Edge-000)
 
+**Homepage**: https://coin-buddy-coby.vercel.app
+
 ## What is CoinBuddy?
 
 CoinBuddy is a Chrome extension that puts a pixel cat pet in your browser to help you navigate DeFi. You type (or speak) what you want in plain language, and the pet translates your intent into real DeFi operations -- vault discovery, deposits, token swaps, cross-chain bridges, and automated strategies. No seed phrases required; it connects to your existing wallet via Coinbase Wallet SDK.
@@ -50,12 +52,21 @@ CoinBuddy is a Chrome extension that puts a pixel cat pet in your browser to hel
 - **Vercel Edge API proxy** -- a Next.js edge API layer that keeps LLM and LI.FI keys server-side, deployed alongside the landing page.
 - **Landing page** -- a Next.js app on the same Vercel deployment with hero, demo, highlights, and install instructions.
 
-## Quick Start
+## Install (Users)
+
+1. Download `coinbuddy-extension.zip` from the [latest release](https://github.com/Moxan1st/CoinBuddy/releases/latest).
+2. Unzip the file to a folder (e.g. `coinbuddy-extension/`).
+3. Open Chrome and go to `chrome://extensions`.
+4. Enable **Developer mode** (toggle in the top-right corner).
+5. Click **Load unpacked** and select the unzipped folder.
+6. The CoinBuddy pixel cat will appear on every page. Click it to start chatting!
+
+## Developer Quick Start
 
 ```bash
 # 1. Clone
-git clone https://github.com/your-org/coinbuddy.git
-cd coinbuddy
+git clone https://github.com/Moxan1st/CoinBuddy.git
+cd CoinBuddy
 
 # 2. Configure environment
 cp .env.example .env

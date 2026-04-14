@@ -127,20 +127,19 @@ const copy: Record<Locale, PageCopy> = {
     meta: {
       languageLabel: 'English',
       switchLabel: '切换到中文',
-      hackathonNote: 'Hackathon-ready landing page for demos, judging, and public sharing.',
+      hackathonNote: 'CoinBuddy turns wallet intent into conversation.',
     },
     nav: [
       { label: 'Highlights', href: '#highlights' },
       { label: 'Demo', href: '#demo' },
       { label: 'Why Different', href: '#difference' },
-      { label: 'How to Try', href: '#try' },
     ],
     hero: {
       badge: 'PIXEL PET x DEFI AGENT',
       title: 'CoinBuddy',
       subtitle: 'PIXEL PET x DEFI AGENT',
       description:
-        'CoinBuddy turns wallet intent into conversation. Ask for vault ideas, route deposits, swap or bridge assets, and define lightweight strategies without juggling five dashboards and three tabs of docs.',
+        'Ask for vault ideas, route deposits, swap or bridge assets, and define strategies — all in one chat.',
       panelTitle: 'Coby works for you',
       primaryCta: 'Watch Demo',
       secondaryCta: 'Install Extension',
@@ -153,8 +152,27 @@ const copy: Record<Locale, PageCopy> = {
         { label: 'Execution', value: 'Swap / Bridge / Deposit' },
         { label: 'Automation', value: 'Plain-English Rules' },
       ],
-      statusChips: ['One-stop execution', 'Natural interaction', 'Smart discovery'],
+      statusChips: ['Smart discovery', 'One-stop execution', 'Natural interaction'],
       scenarios: [
+        {
+          key: 'discovery',
+          tab: 'Smart discovery',
+          title: 'Sniff the keyword, then verify the opportunity.',
+          messages: [
+            {
+              speaker: 'agent',
+              text: 'Meow~ Found a $5,000 USDC prize pool for a 5-day dev sprint, not a yield farm. That "yield in the back" line is marketing, not real APY. Want me to sniff actual protocols like Aave or Pendle instead?',
+            },
+            {
+              speaker: 'user',
+              text: 'Sure, check Aave for me.',
+            },
+            {
+              speaker: 'agent',
+              text: 'Meow~ Found 5 real vaults. Top picks include Morpho on Ethereum and Yo Protocol on Base. Tell me the amount and I can line up the cleanest route.',
+            },
+          ],
+        },
         {
           key: 'execution',
           tab: 'One-stop execution',
@@ -202,25 +220,6 @@ const copy: Record<Locale, PageCopy> = {
             },
           ],
         },
-        {
-          key: 'discovery',
-          tab: 'Smart discovery',
-          title: 'Sniff the keyword, then verify the opportunity.',
-          messages: [
-            {
-              speaker: 'agent',
-              text: 'Meow~ Found a $5,000 USDC prize pool for a 5-day dev sprint, not a yield farm. That “yield in the back” line is marketing, not real APY, APR, or staking yield. Want me to sniff actual protocols like Aave, Compound, or Pendle instead?',
-            },
-            {
-              speaker: 'user',
-              text: 'Sure, check Aave for me.',
-            },
-            {
-              speaker: 'agent',
-              text: 'Meow~ Found 5 real vaults. Top picks include Morpho on Ethereum and Yo Protocol on Base and Arbitrum. Tell me the amount and I can line up the cleanest route in one click.',
-            },
-          ],
-        },
       ],
     },
     highlights: {
@@ -231,38 +230,38 @@ const copy: Record<Locale, PageCopy> = {
         {
           key: 'discover',
           eyebrow: '01 DISCOVER',
-          title: 'Discover vaults without dashboard hopping',
+          title: 'Discover vaults across chains',
           body:
-            'CoinBuddy surfaces yield options across chains and protocols, then frames them in a way a user can act on immediately.',
-          catSrc: '/cats/coinbuddy-thinking-upright.png',
-          catAlt: 'CoinBuddy resting cat illustration',
-        },
-        {
-          key: 'execute',
-          eyebrow: '02 EXECUTE',
-          title: 'Deposit, withdraw, bridge, and swap in chat',
-          body:
-            'Instead of pushing users into separate tools, CoinBuddy keeps the execution path next to the recommendation.',
+            'Surface yield options across protocols and act on them immediately.',
           catSrc: '/cats/coinbuddy-alert-puff.png',
           catAlt: 'CoinBuddy alert cat illustration',
         },
         {
+          key: 'execute',
+          eyebrow: '02 EXECUTE',
+          title: 'Execute DeFi ops in chat',
+          body:
+            'Deposit, withdraw, bridge, and swap right next to the recommendation.',
+          catSrc: '/cats/舔爪子.png',
+          catAlt: 'CoinBuddy licking paw illustration',
+        },
+        {
           key: 'context',
           eyebrow: '03 CONTEXT',
-          title: 'Context-aware responses grounded in wallet state',
+          title: 'Grounded in wallet state',
           body:
-            'The assistant is not answering in a vacuum. It reasons with positions, balances, and route constraints before responding.',
-          catSrc: '/cats/舔爪子.png',
+            'Reasons with your positions, balances, and route constraints.',
+          catSrc: '/cats/coinbuddy-thinking-upright.png',
           catAlt: 'CoinBuddy thinking cat illustration',
         },
         {
           key: 'strategy',
           eyebrow: '04 STRATEGY',
-          title: 'Natural-language strategy creation',
+          title: 'Plain-English strategies',
           body:
-            'Users can define simple automations in plain English, turning intent into a repeatable DeFi workflow instead of a one-off action.',
-          catSrc: '/cats/coinbuddy-done-lucky.png',
-          catAlt: 'CoinBuddy lucky cat illustration',
+            'Define automations in natural language, not one-off actions.',
+          catSrc: '/cats/玩平板.png',
+          catAlt: 'CoinBuddy with tablet illustration',
         },
       ],
     },
@@ -285,21 +284,21 @@ const copy: Record<Locale, PageCopy> = {
           kicker: 'NOT JUST A DASHBOARD',
           title: 'Data alone does not move capital.',
           body:
-            'Typical dashboards help users inspect yields. CoinBuddy closes the loop by helping users act on the opportunity in the same flow.',
+            'Dashboards show yields. CoinBuddy lets you act on them in the same flow.',
           meta: 'Actionable yield context',
         },
         {
           kicker: 'NOT JUST A CHATBOT',
           title: 'Conversation is connected to execution.',
           body:
-            'The assistant is useful because it can turn a request into an operational next step, not because it can produce polished text.',
+            'Turns a request into an operational next step, not polished text.',
           meta: 'Intent tied to execution',
         },
         {
           kicker: 'COMBINED STACK',
-          title: 'Earn + LI.FI + conversational UX + strategy layer.',
+          title: 'LI.FI + conversational UX + strategy layer.',
           body:
-            'The differentiation comes from the stack combination: yield discovery, cross-chain movement, intent capture, and simple automation in one extension.',
+            'Yield discovery, cross-chain routing, intent capture, and automation in one extension.',
           meta: 'One unified product surface',
         },
       ],
@@ -328,7 +327,7 @@ const copy: Record<Locale, PageCopy> = {
       statusBody: '',
     },
     footer: {
-      note: 'Built for hackathon presentation, lightweight enough for immediate Vercel deployment.',
+      note: 'CoinBuddy turns wallet intent into conversation.',
       contactLabel: 'Contact',
       links: [
         { label: 'X', href: 'https://x.com/Moxan1st' },
@@ -342,20 +341,19 @@ const copy: Record<Locale, PageCopy> = {
     meta: {
       languageLabel: '中文',
       switchLabel: 'Switch to English',
-      hackathonNote: '适合 hackathon 演示、评审展示和对外传播的官网单页。',
+      hackathonNote: 'CoinBuddy 把钱包意图变成对话。',
     },
     nav: [
       { label: '亮点', href: '#highlights' },
       { label: '演示', href: '#demo' },
       { label: '差异点', href: '#difference' },
-      { label: '如何体验', href: '#try' },
     ],
     hero: {
       badge: 'PIXEL PET x DEFI AGENT',
       title: 'CoinBuddy',
       subtitle: '像素宠物 x DeFi 智能体',
       description:
-        'CoinBuddy 把 DeFi 意图变成自然对话。你可以直接让它找金库、路由存款、做 swap / bridge，或者用一句话定义简单策略，不再在多个仪表板和文档标签页之间来回切换。',
+        '找金库、路由存款、swap / bridge、定义策略——全在一个对话里完成。',
       panelTitle: 'Coby 为您执行',
       primaryCta: '观看 Demo',
       secondaryCta: '安装扩展',
@@ -368,8 +366,27 @@ const copy: Record<Locale, PageCopy> = {
         { label: '可执行动作', value: '兑换 / 跨链 / 存入' },
         { label: '自动化', value: '自然语言规则' },
       ],
-      statusChips: ['一步执行', '自然交互', '智能发现'],
+      statusChips: ['智能发现', '一步执行', '自然交互'],
       scenarios: [
+        {
+          key: 'discovery',
+          tab: '智能发现',
+          title: '先嗅探关键词，再判断是不是真机会。',
+          messages: [
+            {
+              speaker: 'agent',
+              text: '喵～本猫嗅到一个 $5,000 USDC 奖池，但这不是收益农场，只是营销文案。要不要我去嗅真正的协议，比如 Aave 或 Pendle？',
+            },
+            {
+              speaker: 'user',
+              text: '好啊，看下 Aave 的。',
+            },
+            {
+              speaker: 'agent',
+              text: '喵～找到 5 个真实金库，前排包括 Morpho 和 Yo Protocol。告诉我金额，我帮你排出最合适的路径。',
+            },
+          ],
+        },
         {
           key: 'execution',
           tab: '一步执行',
@@ -417,25 +434,6 @@ const copy: Record<Locale, PageCopy> = {
             },
           ],
         },
-        {
-          key: 'discovery',
-          tab: '智能发现',
-          title: '先嗅探关键词，再判断是不是真机会。',
-          messages: [
-            {
-              speaker: 'agent',
-              text: '喵～本猫嗅到一个 5 天开发冲刺的 $5,000 USDC 奖池，但这不是收益农场。那个“yield in the back”只是调侃式文案，不是 APY、APR，也不是 ETH 质押收益。要不要我继续去嗅真正的协议，比如 Aave、Compound 或 Pendle？',
-            },
-            {
-              speaker: 'user',
-              text: '好啊，看下 Aave 的。',
-            },
-            {
-              speaker: 'agent',
-              text: '喵～本猫又找到了 5 个真实金库，前排包括 Ethereum 上的 Morpho，以及 Base 和 Arbitrum 上的 Yo Protocol。你告诉我金额，我就继续帮你把最合适的路径排出来。',
-            },
-          ],
-        },
       ],
     },
     highlights: {
@@ -446,38 +444,38 @@ const copy: Record<Locale, PageCopy> = {
         {
           key: 'discover',
           eyebrow: '01 收益发现',
-          title: '不用在多个 dashboard 间跳转也能找收益',
+          title: '跨链发现收益机会',
           body:
-            'CoinBuddy 会整理不同链和协议里的收益机会，并用用户可以立刻采取行动的方式呈现出来。',
-          catSrc: '/cats/coinbuddy-thinking-upright.png',
-          catAlt: 'CoinBuddy 休息中的猫咪插图',
-        },
-        {
-          key: 'execute',
-          eyebrow: '02 直接执行',
-          title: '在聊天里完成 deposit、withdraw、bridge 和 swap',
-          body:
-            '不是把用户再丢去别的工具里完成操作，而是让建议和执行路径紧挨在一起。',
+            '自动整理多链多协议的收益，直接可操作。',
           catSrc: '/cats/coinbuddy-alert-puff.png',
           catAlt: 'CoinBuddy 警觉状态猫咪插图',
         },
         {
+          key: 'execute',
+          eyebrow: '02 直接执行',
+          title: '对话中直接执行 DeFi 操作',
+          body:
+            '存入、取出、跨链、兑换，紧跟在建议旁边。',
+          catSrc: '/cats/舔爪子.png',
+          catAlt: 'CoinBuddy 舔爪子猫咪插图',
+        },
+        {
           key: 'context',
           eyebrow: '03 上下文理解',
-          title: '回答基于钱包上下文，而不是空口聊天',
+          title: '基于钱包状态推理',
           body:
-            '它会结合持仓、余额和路由限制来理解请求，所以给出的建议不是脱离实际状态的泛泛回答。',
-          catSrc: '/cats/舔爪子.png',
+            '结合持仓、余额和路由约束给出建议。',
+          catSrc: '/cats/coinbuddy-thinking-upright.png',
           catAlt: 'CoinBuddy 思考状态猫咪插图',
         },
         {
           key: 'strategy',
           eyebrow: '04 策略创建',
-          title: '用自然语言创建简单策略',
+          title: '自然语言定义策略',
           body:
-            '用户可以直接描述轻量自动化规则，把一次性操作变成可重复执行的 DeFi 工作流。',
-          catSrc: '/cats/coinbuddy-done-lucky.png',
-          catAlt: 'CoinBuddy 招财猫状态插图',
+            '用一句话把意图变成可重复的 DeFi 工作流。',
+          catSrc: '/cats/玩平板.png',
+          catAlt: 'CoinBuddy 玩平板猫咪插图',
         },
       ],
     },
@@ -499,21 +497,21 @@ const copy: Record<Locale, PageCopy> = {
           kicker: '不只是仪表板',
           title: '只有数据，不会自动帮用户完成资金动作。',
           body:
-            '传统 dashboard 擅长展示收益。CoinBuddy 的重点是把“看到机会”直接衔接到“执行动作”。',
+            '看到机会，直接衔接到执行动作。',
           meta: '把收益信息变成可执行决策',
         },
         {
           kicker: '不只是聊天机器人',
           title: '对话不是终点，执行才是价值。',
           body:
-            '它的价值不在于会说漂亮的话，而在于能把一句请求推进成可执行的下一步。',
+            '把请求直接推进成可执行的下一步。',
           meta: '把意图直接接到执行链路上',
         },
         {
           kicker: '整合式能力栈',
-          title: '收益发现 + LI.FI + 对话式体验 + 策略层。',
+          title: 'LI.FI + 对话式体验 + 策略层。',
           body:
-            '真正的差异来自这套组合：收益发现、跨链移动、意图理解和轻量自动化都收进同一个扩展体验里。',
+            '跨链路由、意图理解和自动化，收进同一个扩展里。',
           meta: '一个界面完成完整链上流程',
         },
       ],
@@ -542,7 +540,7 @@ const copy: Record<Locale, PageCopy> = {
       statusBody: '',
     },
     footer: {
-      note: '为 hackathon 展示而做，同时保持足够轻量，可直接部署到 Vercel。',
+      note: 'CoinBuddy 把钱包意图变成对话。',
       contactLabel: '联系',
       links: [
         { label: 'X', href: 'https://x.com/Moxan1st' },

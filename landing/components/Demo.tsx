@@ -12,23 +12,6 @@ export default function Demo() {
   return (
     <section id="demo" className="content-section demo-section">
       <div className="shell demo-grid">
-        <div className="demo-highlights">
-          <div className="highlight-grid">
-            {copy.highlights.items.map((item) => (
-              <article key={item.key} className="highlight-card">
-                <div className="highlight-art">
-                  <Image src={item.catSrc} alt={item.catAlt} width={180} height={180} className="pixel-cat" />
-                </div>
-                <div className="highlight-copy">
-                  <p className="highlight-kicker">{item.eyebrow}</p>
-                  <h3>{item.title}</h3>
-                  <p>{item.body}</p>
-                </div>
-              </article>
-            ))}
-          </div>
-        </div>
-
         <div className="hero-panel">
           <div className="hero-panel-heading">
             <h2>
@@ -47,35 +30,21 @@ export default function Demo() {
                 {locale === 'zh' ? '为您执行' : 'works for you'}
               </span>
             </h2>
-            <p className="hero-panel-intro">{copy.hero.heroNote}</p>
           </div>
-          <div className="hero-visual-grid">
-            <div className="hero-chat-stack">
-              <div className="scenario-card">
-                <p className="scenario-title">{currentScenario.title}</p>
-                <div className="scenario-messages">
-                  {currentScenario.messages.map((message, index) => (
-                    <div key={`${currentScenario.key}-${index}`} className={message.speaker === 'user' ? 'chat-card user' : 'chat-card agent'}>
-                      <span className="chat-label">
-                        {message.speaker === 'user' ? copy.hero.userLabel : copy.hero.agentLabel}
-                      </span>
-                      <p>{message.text}</p>
-                      {message.ctaLabel ? <div className="chat-cta">{message.ctaLabel}</div> : null}
-                    </div>
-                  ))}
-                </div>
+          <div className="hero-chat-stack">
+            <div className="scenario-card">
+              <p className="scenario-title">{currentScenario.title}</p>
+              <div className="scenario-messages">
+                {currentScenario.messages.map((message, index) => (
+                  <div key={`${currentScenario.key}-${index}`} className={message.speaker === 'user' ? 'chat-card user' : 'chat-card agent'}>
+                    <span className="chat-label">
+                      {message.speaker === 'user' ? copy.hero.userLabel : copy.hero.agentLabel}
+                    </span>
+                    <p>{message.text}</p>
+                    {message.ctaLabel ? <div className="chat-cta">{message.ctaLabel}</div> : null}
+                  </div>
+                ))}
               </div>
-            </div>
-
-            <div className="hero-cats">
-              <Image
-                src="/cats/玩平板.png"
-                alt="CoinBuddy thinking"
-                width={340}
-                height={380}
-                priority
-                className="pixel-cat hero-main-cat"
-              />
             </div>
           </div>
           <div className="hero-panel-bottom">
@@ -89,6 +58,36 @@ export default function Demo() {
                 {chip}
               </button>
             ))}
+          </div>
+        </div>
+
+        <div className="demo-right">
+          <div className="demo-video-wrap">
+            <iframe
+              src="https://drive.google.com/file/d/1YBBb_9fySz5GUxp72uhZoO7f0q35YViD/preview"
+              width="640"
+              height="360"
+              allow="autoplay"
+              allowFullScreen
+              style={{ border: 'none', borderRadius: 12, maxWidth: '100%', width: '100%', display: 'block' }}
+            />
+          </div>
+
+          <div className="demo-highlights">
+            <div className="highlight-grid">
+              {copy.highlights.items.map((item) => (
+                <article key={item.key} className="highlight-card">
+                  <div className="highlight-art">
+                    <Image src={item.catSrc} alt={item.catAlt} width={80} height={80} className="pixel-cat" />
+                  </div>
+                  <div className="highlight-copy">
+                    <p className="highlight-kicker">{item.eyebrow}</p>
+                    <h3>{item.title}</h3>
+                    <p>{item.body}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
           </div>
         </div>
       </div>
