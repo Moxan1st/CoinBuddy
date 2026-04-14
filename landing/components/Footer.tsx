@@ -23,6 +23,7 @@ export default function Footer() {
         </div>
 
         <div className="footer-links">
+          <span className="footer-contact-label">{copy.footer.contactLabel}</span>
           {copy.footer.links.map((link) => (
             <a key={link.label} href={link.href} className={link.placeholder ? 'footer-link placeholder' : 'footer-link'}>
               {link.label}

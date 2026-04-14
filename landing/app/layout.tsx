@@ -5,6 +5,9 @@ export const metadata: Metadata = {
   title: 'CoinBuddy',
   description:
     'CoinBuddy is an AI-native DeFi pet agent for yield discovery, execution, and simple strategy automation.',
+  icons: {
+    icon: '/icon.png',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

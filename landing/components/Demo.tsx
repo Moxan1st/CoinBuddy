@@ -12,6 +12,23 @@ export default function Demo() {
   return (
     <section id="demo" className="content-section demo-section">
       <div className="shell demo-grid">
+        <div className="demo-highlights">
+          <div className="highlight-grid">
+            {copy.highlights.items.map((item) => (
+              <article key={item.key} className="highlight-card">
+                <div className="highlight-art">
+                  <Image src={item.catSrc} alt={item.catAlt} width={180} height={180} className="pixel-cat" />
+                </div>
+                <div className="highlight-copy">
+                  <p className="highlight-kicker">{item.eyebrow}</p>
+                  <h3>{item.title}</h3>
+                  <p>{item.body}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+
         <div className="hero-panel">
           <div className="hero-panel-heading">
             <h2>
@@ -73,17 +90,6 @@ export default function Demo() {
               </button>
             ))}
           </div>
-        </div>
-
-        <div className="demo-frame">
-          <iframe
-            src="https://drive.google.com/file/d/1YBBb_9fySz5GUxp72uhZoO7f0q35YViD/preview"
-            width="640"
-            height="480"
-            allow="autoplay"
-            allowFullScreen
-            style={{ border: 'none', borderRadius: 12, maxWidth: '100%' }}
-          />
         </div>
       </div>
     </section>

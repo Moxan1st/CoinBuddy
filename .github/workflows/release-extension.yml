@@ -1,0 +1,54 @@
+name: Package Extension
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build extension
+        run: pnpm build
+        env:
+          PLASMO_PUBLIC_API_BASE: ${{ secrets.PLASMO_PUBLIC_API_BASE }}
+          PLASMO_PUBLIC_PROXY_TOKEN: ${{ secrets.PLASMO_PUBLIC_PROXY_TOKEN }}
+
+      - name: Zip extension
+        run: cd build/chrome-mv3-prod && zip -r ../../coinbuddy-extension.zip .
+
+      - name: Delete existing latest release
+        run: gh release delete latest --yes 2>/dev/null || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Delete existing latest tag
+        run: git push origin :refs/tags/latest 2>/dev/null || true
+
+      - name: Create release
+        run: |
+          gh release create latest \
+            coinbuddy-extension.zip \
+            --title "CoinBuddy Extension (latest)" \
+            --notes "Auto-built from commit $(git rev-parse --short HEAD).
+
+          Download \`coinbuddy-extension.zip\`, unzip, then load in Chrome via \`chrome://extensions\` → Developer mode → Load unpacked." \
+            --latest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

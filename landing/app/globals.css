@@ -809,6 +809,7 @@ button {
 
 .try-cards {
   display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 14px;
 }
 
@@ -845,6 +846,13 @@ button {
   display: flex;
   gap: 0.8rem;
   flex-wrap: wrap;
+  align-items: center;
+}
+
+.footer-contact-label {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #334155;
 }
 
 .footer-link {
@@ -934,6 +942,10 @@ html[lang='zh'] .demo-note-body {
 @media (max-width: 640px) {
   .shell {
     width: min(100% - 18px, 1280px);
+  }
+
+  .try-cards {
+    grid-template-columns: 1fr;
   }
 
   .hero-copy,
