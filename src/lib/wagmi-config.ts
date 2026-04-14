@@ -12,14 +12,14 @@ export const wagmiConfig = createConfig({
     metaMask(),
     coinbaseWallet({
       appName: "CoinBuddy",
-      preference: "smartWalletOnly",
+      preference: "all",
       appLogoUrl: ""
     }),
     walletConnect({ projectId: WC_PROJECT_ID })
   ],
   transports: {
     [mainnet.id]: http(),
-    [base.id]: http(),
+    [base.id]: http("https://mainnet.base.org"),
     [arbitrum.id]: http(),
     [optimism.id]: http(),
     [sepolia.id]: http(),

@@ -1,5 +1,15 @@
 {
   "extends": "plasmo/templates/tsconfig.base",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "baseUrl": ".",
+    "paths": {
+      "~*": ["src/*"],
+      "~planner": ["src/planner/index.ts"],
+      "~strategy": ["src/strategy/index.ts"],
+      "@/*": ["landing/*"]
+    }
+  },
   "exclude": ["node_modules"],
   "include": [".plasmo/index.d.ts", "./**/*.ts", "./**/*.tsx"]
 }

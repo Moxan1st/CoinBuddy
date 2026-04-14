@@ -6,8 +6,9 @@
   "author": "CoinBuddy Team",
   "scripts": {
     "dev": "plasmo dev",
-    "build": "plasmo build",
-    "package": "plasmo package"
+    "build": "node -e \"const {spawnSync}=require('child_process');const {writeFileSync,unlinkSync}=require('fs');const {join}=require('path');const {tmpdir}=require('os');const {pathToFileURL}=require('url');const loader=join(tmpdir(),'coinbuddy-plasmo-loader.mjs');const code=['export async function resolve(specifier, context, nextResolve) {','  if (specifier === \\'package-json\\') {','    return {','      url: \\'data:text/javascript,\\' + encodeURIComponent(\\'export default async function packageJson(){return {version:\\\"0.90.5\\\"};}\\'),','      shortCircuit: true,','    };','  }','  return nextResolve(specifier, context);','}'].join('\\\\n');writeFileSync(loader,code);try{const result=spawnSync(process.execPath,[join(process.cwd(),'node_modules','plasmo','dist','index.js'),'build'],{stdio:'inherit',env:{...process.env,NODE_OPTIONS:'--loader '+pathToFileURL(loader).href}});process.exit(result.status??1)}finally{try{unlinkSync(loader)}catch{}}\"",
+    "package": "plasmo package",
+    "test": "node --test --experimental-strip-types src/lib/chain-config.test.ts src/background/dialogue-state.test.ts src/background/wallet-resolve.test.ts src/background/withdraw-context.test.ts src/background/wallet-gate.test.ts src/background/session-cache.test.ts src/background/portfolio-normalize.test.ts src/background/quote-formatter.test.ts src/background/llm-client.test.ts src/background/lifi-client.test.ts src/background/handlers/invest.test.ts src/planner/normalize.test.ts src/popup-wallet-storage.test.ts src/background/planner/agent-planner.test.ts src/background/planner/step-executor.test.ts src/background/planner/action-registry.test.ts"
   },
   "dependencies": {
     "@plasmohq/messaging": "^0.7.0",
@@ -31,12 +32,26 @@
   },
   "manifest": {
     "host_permissions": [
-      "https://*/*"
+      "https://twitter.com/*",
+      "https://x.com/*",
+      "https://earn.li.fi/*",
+      "https://li.quest/*",
+      "https://generativelanguage.googleapis.com/*",
+      "https://*.aliyun.com/*",
+      "https://*.aliyuncs.com/*",
+      "https://*.coinbase.com https://exceptions.coinbase.com/*",
+      "https://keys.coinbase.com/*",
+      "https://wallet.coinbase.com/*",
+      "https://api.wallet.coinbase.com/*",
+      "https://api.cdp.coinbase.com/*"
     ],
     "permissions": [
       "activeTab",
       "storage"
-    ]
+    ],
+    "content_security_policy": {
+      "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; frame-src 'self' https://*.coinbase.com https://exceptions.coinbase.com https://wallet.coinbase.com; connect-src 'self' https:; img-src 'self' data: https:; style-src 'self' 'unsafe-inline';"
+    }
   },
   "pnpm": {
     "overrides": {

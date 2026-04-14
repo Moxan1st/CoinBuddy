@@ -36,8 +36,11 @@ export default function WalletExecutor() {
               window.dispatchEvent(
                 new CustomEvent("coinbuddy:tx-result", { detail: result })
               )
-              // 清理
-              chrome.storage.local.remove(["coinbuddy_pending_tx", "coinbuddy_tx_result"])
+              if (result.success || result.retryable === false) {
+                chrome.storage.local.remove(["coinbuddy_pending_tx", "coinbuddy_tx_result"])
+              } else {
+                chrome.storage.local.remove(["coinbuddy_tx_result"])
+              }
               chrome.storage.onChanged.removeListener(onResult)
             }
           }

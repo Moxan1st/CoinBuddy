@@ -3,6 +3,17 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { WagmiProvider, useAccount, useConnect, useDisconnect, useSendTransaction, useSwitchChain } from "wagmi"
 import { useSendCalls } from "wagmi/experimental"
 import { wagmiConfig } from "~lib/wagmi-config"
+import { shouldPersistWalletAddress } from "./popup-wallet-storage"
+import {
+  canFallbackToSequentialBatch,
+  describePendingPopupTransaction,
+  describePopupCall,
+  formatPopupWalletError,
+  normalizePendingPopupTransaction,
+  selectPreferredPopupConnector,
+  shouldFallbackToSingleSend,
+  splitSequentialBatchCalls,
+} from "~lib/popup-transaction"
 
 const queryClient = new QueryClient()
 
@@ -16,7 +27,7 @@ const WALLET_DISPLAY: Record<string, { label: string; icon: string }> = {
 }
 
 function PopupInner() {
-  const { address, isConnected } = useAccount()
+  const { address, isConnected, connector } = useAccount()
   const { connectAsync, connectors } = useConnect()
   const { disconnectAsync } = useDisconnect()
   const { sendTransactionAsync } = useSendTransaction()
@@ -28,11 +39,9 @@ function PopupInner() {
 
   // Sync wallet address to storage
   useEffect(() => {
-    if (address) {
+    if (shouldPersistWalletAddress(address)) {
       chrome.storage.local.set({ coinbuddy_wallet: address })
       setStatus("")
-    } else {
-      chrome.storage.local.remove("coinbuddy_wallet")
     }
   }, [address])
 
@@ -46,10 +55,7 @@ function PopupInner() {
   }, [])
 
   const getPreferredConnector = () => {
-    const coinbase = connectors.find(
-      (c) => c.id === "coinbaseWalletSDK" || c.name.toLowerCase().includes("coinbase")
-    )
-    return coinbase || connectors[0]
+    return selectPreferredPopupConnector(connectors, connector || null)
   }
 
   // Auto-sign when popup opens with a pending tx
@@ -80,45 +86,96 @@ function PopupInner() {
     setTxSigning(true)
     setStatus("Connecting wallet & signing...")
     try {
-      // 每次签名都强制重新连接，确保 connector 完全初始化
-      // （popup 关闭后 wagmi 的 connector 实例方法丢失）
+      const normalized = normalizePendingPopupTransaction(payload)
+      if (!normalized) {
+        throw new Error("Invalid pending transaction payload")
+      }
+      // 优化连接逻辑：如果已经连接了正确的 connector，不需要重新连接
       const preferredConnector = getPreferredConnector()
-      try {
-        await disconnectAsync()
-      } catch (_) { /* 可能本来就没连接 */ }
-      await connectAsync({ connector: preferredConnector })
-      const targetChainId = payload.chainId ? Number(payload.chainId) : undefined
-      if (targetChainId) {
+      if (!preferredConnector) {
+        throw new Error("No wallet connector available")
+      }
+
+      if (!isConnected || connector?.id !== preferredConnector.id) {
         try {
-          await switchChainAsync({ chainId: targetChainId })
-        } catch (switchErr: any) {
-          throw new Error(`Please switch wallet network to chain ${targetChainId} first: ${switchErr?.shortMessage || switchErr?.message || "switch failed"}`)
+          await disconnectAsync()
+        } catch (_) {}
+        await connectAsync({ connector: preferredConnector })
+      }
+
+      const targetChainId = normalized.chainId ?? undefined
+      if (targetChainId) {
+        // 只有当 chainId 不匹配时才切换
+        const { chainId: currentChainId } = wagmiConfig.state
+        if (currentChainId !== targetChainId) {
+          try {
+            await switchChainAsync({ chainId: targetChainId })
+          } catch (switchErr: any) {
+            throw new Error(`Please switch wallet network to chain ${targetChainId} first: ${switchErr?.shortMessage || switchErr?.message || "switch failed"}`)
+          }
         }
       }
 
       let hash: string
+      const canFallbackToSingleSend = shouldFallbackToSingleSend(normalized)
+      const canFallbackToSequential = canFallbackToSequentialBatch(normalized)
+      const summary = describePendingPopupTransaction(normalized)
 
-      if (payload.isBatch && payload.calls?.length > 0) {
-        const mappedCalls = payload.calls.map((c: any) => ({
-          to: c.to as `0x${string}`,
-          data: (c.data || "0x") as `0x${string}`,
-          value: c.value ? BigInt(c.value) : 0n,
-        }))
-        setStatus("Sending atomic smart batch...")
-        console.log(`[Popup] Sending full atomic batch: ${mappedCalls.length} calls via EIP-5792`)
-        const batchId = await sendCallsAsync({
-          calls: mappedCalls,
-          chainId: targetChainId,
-        } as any)
-        hash = String(batchId)
+      if (normalized.kind === "batch") {
+        const batchPreview = summary.steps.length
+          ? summary.steps.slice(0, 3).join(" → ")
+          : normalized.calls
+              .slice(0, 3)
+              .map((call, index) => describePopupCall(call, index, normalized.calls.length))
+              .join(" → ")
+        setStatus(batchPreview ? `Sending atomic smart batch: ${batchPreview}` : "Sending atomic smart batch...")
+        console.log(`[Popup] Sending full atomic batch: ${normalized.calls.length} calls via EIP-5792`)
+        try {
+          const batchId = await sendCallsAsync({
+            calls: normalized.calls.map((call) => ({
+              to: call.to,
+              data: call.data,
+              value: call.value,
+            })),
+          } as any)
+          hash = String(batchId)
+        } catch (batchErr: any) {
+          if (canFallbackToSequential) {
+            const sequentialCalls = splitSequentialBatchCalls(normalized)
+            let latestHash = ""
+            for (let i = 0; i < sequentialCalls.length; i += 1) {
+              const call = sequentialCalls[i]
+              setStatus(`Sequential fallback: ${describePopupCall(call, i, sequentialCalls.length)}...`)
+              latestHash = await sendTransactionAsync({
+                to: call.to,
+                data: call.data,
+                value: call.value,
+                chainId: targetChainId,
+              })
+            }
+            hash = latestHash
+          } else if (canFallbackToSingleSend) {
+            setStatus("Batch unsupported, falling back to single send...")
+            const single = normalized.calls[0]
+            hash = await sendTransactionAsync({
+              to: single.to,
+              data: single.data,
+              value: single.value,
+              chainId: targetChainId,
+            })
+          } else {
+            throw batchErr
+          }
+        }
       } else {
         // Single transaction (existing flow)
+        const single = normalized.calls[0]
+        setStatus(`Signing ${describePopupCall(single, 0, 1)}...`)
         hash = await sendTransactionAsync({
-          to: payload.to as `0x${string}`,
-          data: (payload.data || "0x") as `0x${string}`,
-          value: payload.value ? BigInt(payload.value) : 0n,
+          to: single.to,
+          data: single.data,
+          value: single.value,
           chainId: targetChainId,
-          gas: payload.gasLimit ? BigInt(payload.gasLimit) : undefined,
         })
       }
 
@@ -129,28 +186,46 @@ function PopupInner() {
       setPendingTx(null)
       chrome.storage.local.remove("coinbuddy_pending_tx")
     } catch (err: any) {
+      const normalized = normalizePendingPopupTransaction(payload)
+      const canFallbackToSingleSend = normalized ? shouldFallbackToSingleSend(normalized) : false
+      const canFallbackToSequential = normalized ? canFallbackToSequentialBatch(normalized) : false
+      const popupError = formatPopupWalletError(err, {
+        isBatch: normalized?.kind === "batch",
+        callCount: normalized?.calls.length || 0,
+      })
       console.error("[Popup] TX Error full:", JSON.stringify(err, Object.getOwnPropertyNames(err), 2))
       console.error("[Popup] TX Error details:", err?.details || err?.cause?.message || err?.cause?.details || "none")
-      const rawMsg = err?.shortMessage || err?.message || "Transaction rejected"
-      const lower = String(rawMsg).toLowerCase()
+      const lower = popupError.message.toLowerCase()
       const friendly = lower.includes("insufficient funds")
         ? "余额不足：当前钱包不足以支付金额+Gas，请先充值后再试。"
         : lower.includes("transfer_from_failed")
           ? "批量模拟失败（TRANSFER_FROM_FAILED）：这不是 403/CSP 问题，通常是钱包 bundler 在原子模拟时看不到授权状态。已尝试自动先授权再执行；若仍失败请先单独授权后重试。"
-        : rawMsg
+          : popupError.message
 
       await chrome.storage.local.set({
-        coinbuddy_tx_result: { success: false, error: friendly }
+        coinbuddy_tx_result: {
+          success: false,
+          error: friendly,
+          code: popupError.code,
+          retryable: popupError.retryable,
+          preservePendingTx: popupError.retryable,
+          fallbackTried: normalized?.kind === "batch" ? canFallbackToSingleSend || canFallbackToSequential : false,
+          details: popupError.details || null,
+        }
       })
       setStatus(lower.includes("rejected") || lower.includes("denied") ? "Cancelled by user" : `Error: ${friendly.slice(0, 60)}`)
-      setPendingTx(null)
-      chrome.storage.local.remove("coinbuddy_pending_tx")
+      if (!popupError.retryable) {
+        setPendingTx(null)
+        chrome.storage.local.remove("coinbuddy_pending_tx")
+      }
     } finally {
       setTxSigning(false)
     }
   }
 
   const shortAddr = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : null
+  const normalizedPendingTx = pendingTx ? normalizePendingPopupTransaction(pendingTx) : null
+  const pendingTxSummary = normalizedPendingTx ? describePendingPopupTransaction(normalizedPendingTx) : null
 
   return (
     <div style={{
@@ -167,19 +242,48 @@ function PopupInner() {
           borderRadius: 10, border: "1px solid rgba(251,191,36,0.4)", marginBottom: 12
         }}>
           <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>
-            {pendingTx.isBatch ? `Smart Batch (${pendingTx.calls?.length || 0} steps)` : "Pending Transaction"}
+            {pendingTxSummary?.isBatch ? `Smart Batch (${pendingTxSummary.callCount} steps)` : "Pending Transaction"}
           </div>
-          <div style={{ fontSize: 12, color: "#fbbf24" }}>
-            {pendingTx.isBatch
-              ? `${pendingTx.calls?.length || 0} atomic calls | Chain: ${pendingTx.chainId || "?"}`
-              : `To: ${pendingTx.to?.slice(0, 10)}... | Chain: ${pendingTx.chainId || "?"}`}
+          <div style={{ fontSize: 13, color: "#fbbf24", fontWeight: 700, lineHeight: 1.3 }}>
+            {pendingTxSummary?.title || (pendingTx.isBatch ? `Smart Batch (${pendingTx.calls?.length || 0} steps)` : "Pending Transaction")}
           </div>
+          {pendingTxSummary?.subtitle && (
+            <div style={{ fontSize: 11, opacity: 0.8, marginTop: 4, lineHeight: 1.4 }}>
+              {pendingTxSummary.subtitle}
+            </div>
+          )}
+          <div style={{ fontSize: 11, opacity: 0.85, marginTop: 4, lineHeight: 1.4 }}>
+            {pendingTxSummary?.vaultLabel && <div>Vault: {pendingTxSummary.vaultLabel}</div>}
+            <div>Chain: {pendingTxSummary?.chainLabel || pendingTx.chainId || "?"}</div>
+            {pendingTxSummary?.asset && pendingTxSummary?.amount && (
+              <div>Amount: {pendingTxSummary.amount} {pendingTxSummary.asset}</div>
+            )}
+            {pendingTxSummary?.note && <div style={{ opacity: 0.8 }}>{pendingTxSummary.note}</div>}
+          </div>
+          {Array.isArray(pendingTxSummary?.steps) && pendingTxSummary.steps.length > 0 && (
+            <div style={{ fontSize: 11, opacity: 0.82, marginTop: 6, lineHeight: 1.45 }}>
+              {pendingTxSummary.steps.map((step, index) => (
+                <div key={index}>{step}</div>
+              ))}
+            </div>
+          )}
+          {!pendingTxSummary && pendingTx.isBatch && Array.isArray(pendingTx.calls) && pendingTx.calls.length > 0 && (
+            <div style={{ fontSize: 11, opacity: 0.75, marginTop: 6, lineHeight: 1.4 }}>
+              {pendingTx.calls.slice(0, 3).map((call: any, index: number) => (
+                <div key={index}>{describePopupCall({
+                  to: call.to,
+                  data: (call.data || "0x") as `0x${string}`,
+                  value: call.value ? BigInt(call.value) : 0n,
+                }, index, pendingTx.calls.length)}</div>
+              ))}
+            </div>
+          )}
           {pendingTx.erc8211 && (
-            <div style={{ fontSize: 10, opacity: 0.5, marginTop: 2 }}>ERC-8211 Compatible | EIP-5792 Execution</div>
+            <div style={{ fontSize: 10, opacity: 0.5, marginTop: 4 }}>ERC-8211 Compatible | EIP-5792 Execution</div>
           )}
           {txSigning ? (
             <div style={{ marginTop: 8, textAlign: "center", fontSize: 12, opacity: 0.7 }}>
-              Signing in progress...
+              {status || "Signing in progress..."}
             </div>
           ) : (
             <button onClick={() => handleSignTx(pendingTx)} style={{

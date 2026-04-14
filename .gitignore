@@ -3,3 +3,8 @@ node_modules
 build
 .env
 *.pem
+landing/.next
+landing/node_modules
+CLAUDE_IMPLEMENTATION_PLAN.md
+CODEX_PLAN_AGENT_PLANNER.md
+tsconfig.tsbuildinfo

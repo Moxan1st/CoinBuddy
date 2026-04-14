@@ -50,7 +50,7 @@ async function handleSniffMatch(payload, sendResponse) {
     
     sendResponse({
         status: "success",
-        petState: "alert",
+        petState: "attentive",
         suggestedReply: `主人！我看到由于有代币激励，这条推文提到的 ${payload.keywords.join(', ')}... 要我帮你买吗？`
     });
 }
@@ -72,7 +72,7 @@ async function handleUserAsk(payload, sendResponse) {
     // 返回给前端
     sendResponse({
         status: "success",
-        petState: "thinking", // 应该在前台变为 thinking，然后这里返回回复后，前台变为对讲状态
+        petState: "excited", // 前台 thinking → 收到结果后变 excited，然后 auto-revert
         reply: "经过我仔细的测算...（这里填入实际的智库返回词）",
         transactionPayload: { /* txPayload */ }
     });

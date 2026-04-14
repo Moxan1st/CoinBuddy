@@ -39,23 +39,31 @@ function detectMatch(text: string): { matched: boolean; keywords: string[]; cont
   return null
 }
 
-export type SniffCallback = (keywords: string[], contextText: string) => void
+/** Return true from callback to consume cooldown, false to retry later */
+export type SniffCallback = (keywords: string[], contextText: string) => boolean
 
 export function startSniffer(onMatch: SniffCallback) {
   const check = () => {
     if (sniffCooldown) return
     const text = getVisibleText()
     if (text === lastSniffedText) return
-    lastSniffedText = text
 
     const result = detectMatch(text)
     if (result?.matched) {
-      sniffCooldown = true
-      onMatch(result.keywords, result.contextText)
-      // Cooldown 30s to avoid spam
-      setTimeout(() => {
-        sniffCooldown = false
-      }, 30000)
+      const handled = onMatch(result.keywords, result.contextText)
+      if (handled) {
+        lastSniffedText = text
+        sniffCooldown = true
+        // Cooldown 30s to avoid spam
+        setTimeout(() => {
+          sniffCooldown = false
+        }, 30000)
+      }
+      // If not handled (chat open), don't consume cooldown or cache text
+      // so it can fire again on next check
+    } else {
+      // No match — cache text to avoid re-scanning unchanged content
+      lastSniffedText = text
     }
   }
 
