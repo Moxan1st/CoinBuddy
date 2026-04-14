@@ -20,8 +20,9 @@ const ERC20_APPROVE_ABI = [
 
 const MAX_UINT256 = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
 const EARN_API = "https://earn.li.fi"
-const COMPOSER_API = "https://li.quest"
-const LIFI_API_KEY = process.env.PLASMO_PUBLIC_LIFI_KEY || ""
+const API_BASE = process.env.PLASMO_PUBLIC_API_BASE || ""
+const PROXY_TOKEN = process.env.PLASMO_PUBLIC_PROXY_TOKEN || ""
+const COMPOSER_API = `${API_BASE}/api/lifi`
 const BALANCE_OF_SELECTOR = "0x70a08231"
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 const DEFAULT_SLIPPAGE = "0.005"
@@ -77,7 +78,9 @@ function getCachedVaults(chainId: number): Vault[] | null {
  */
 export async function resolveTokenAddressViaApi(chainId: number, symbol: string): Promise<string | null> {
   try {
-    const res = await fetch(`${COMPOSER_API}/v1/token?chain=${chainId}&token=${symbol.toUpperCase()}`);
+    const res = await fetch(`${COMPOSER_API}/token?chain=${chainId}&token=${symbol.toUpperCase()}`, {
+      headers: PROXY_TOKEN ? { "x-cb-token": PROXY_TOKEN } : {},
+    });
     if (res.ok) {
       const data = await res.json();
       return data.address;
@@ -238,10 +241,10 @@ export async function buildDepositTransaction(fromChain: number, vault: Vault, u
 
   try {
     const headers: Record<string, string> = { accept: "application/json" };
-    if (LIFI_API_KEY) headers["x-lifi-api-key"] = LIFI_API_KEY;
+    if (PROXY_TOKEN) headers["x-cb-token"] = PROXY_TOKEN;
 
-    logger.info("Build deposit quote request", { url: `${COMPOSER_API}/v1/quote?${params.toString()}`, hasApiKey: !!LIFI_API_KEY })
-    const res = await fetch(`${COMPOSER_API}/v1/quote?${params.toString()}`, {
+    logger.info("Build deposit quote request", { url: `${COMPOSER_API}/quote?${params.toString()}`, hasProxyToken: !!PROXY_TOKEN })
+    const res = await fetch(`${COMPOSER_API}/quote?${params.toString()}`, {
       headers,
       signal: AbortSignal.timeout(30000)
     });
@@ -330,10 +333,10 @@ export async function buildSwapTransaction(fromSymbol: string, toSymbol: string,
     integrator: INTEGRATOR,
   })
   const headers: Record<string, string> = { accept: "application/json" }
-  if (LIFI_API_KEY) headers["x-lifi-api-key"] = LIFI_API_KEY
+  if (PROXY_TOKEN) headers["x-cb-token"] = PROXY_TOKEN
   try {
     logger.info("Build swap start", { chainId, fromSymbol, toSymbol, rawAmount, wallet: shortAddress(userWallet) })
-    const res = await fetch(`${COMPOSER_API}/v1/quote?${params}`, { headers, signal: AbortSignal.timeout(30000) })
+    const res = await fetch(`${COMPOSER_API}/quote?${params}`, { headers, signal: AbortSignal.timeout(30000) })
     const data = await res.json()
     if (data.message || data.error || !data.transactionRequest) {
       logger.warn("Build swap failed", { chainId, fromSymbol, toSymbol, rawAmount, status: res.status, message: data.message, error: data.error })
@@ -401,10 +404,10 @@ export async function buildBridgeTransaction(token: string, fromChain: number, t
     integrator: INTEGRATOR,
   })
   const headers: Record<string, string> = { accept: "application/json" }
-  if (LIFI_API_KEY) headers["x-lifi-api-key"] = LIFI_API_KEY
+  if (PROXY_TOKEN) headers["x-cb-token"] = PROXY_TOKEN
   try {
     logger.info("Build bridge start", { token, fromChain, toChain, rawAmount, wallet: shortAddress(userWallet) })
-    const res = await fetch(`${COMPOSER_API}/v1/quote?${params}`, { headers, signal: AbortSignal.timeout(30000) })
+    const res = await fetch(`${COMPOSER_API}/quote?${params}`, { headers, signal: AbortSignal.timeout(30000) })
     const data = await res.json()
     if (!data.transactionRequest || data.message || data.error) {
       logger.warn("Build bridge failed", { token, fromChain, toChain, rawAmount, status: res.status, message: data.message, error: data.error })
@@ -485,7 +488,7 @@ export async function buildWithdrawTransaction(vault: Vault, userWallet: string,
     integrator: INTEGRATOR,
   })
   const headers: Record<string, string> = { accept: "application/json" }
-  if (LIFI_API_KEY) headers["x-lifi-api-key"] = LIFI_API_KEY
+  if (PROXY_TOKEN) headers["x-cb-token"] = PROXY_TOKEN
 
   try {
     logger.info("Build withdraw start", {
@@ -495,7 +498,7 @@ export async function buildWithdrawTransaction(vault: Vault, userWallet: string,
       rawAmount: withdrawAmount,
       wallet: shortAddress(userWallet),
     })
-    const res = await fetch(`${COMPOSER_API}/v1/quote?${params}`, { headers, signal: AbortSignal.timeout(30000) })
+    const res = await fetch(`${COMPOSER_API}/quote?${params}`, { headers, signal: AbortSignal.timeout(30000) })
     const data = await res.json()
     if (!data.transactionRequest || data.message || data.error) {
       logger.warn("Build withdraw failed", {
@@ -645,8 +648,8 @@ export async function fetchSupportedProtocols(): Promise<any[]> {
 export async function fetchTokenPrice(symbol: string, chainId = 1): Promise<any | null> {
   const query = ({ BTC: "WBTC", BITCOIN: "WBTC" } as Record<string, string>)[symbol.toUpperCase()] || symbol.toUpperCase()
   try {
-    const res = await fetch(`${COMPOSER_API}/v1/token?chain=${chainId}&token=${query}`, {
-      headers: LIFI_API_KEY ? { "x-lifi-api-key": LIFI_API_KEY } : {},
+    const res = await fetch(`${COMPOSER_API}/token?chain=${chainId}&token=${query}`, {
+      headers: PROXY_TOKEN ? { "x-cb-token": PROXY_TOKEN } : {},
       signal: AbortSignal.timeout(10000),
     })
     return res.ok ? await res.json() : null
@@ -692,8 +695,8 @@ export async function buildComposableBatch(steps: Array<{ action: string; params
         allowDestinationCall: "true",
       })
       const headers: Record<string, string> = { accept: "application/json" }
-      if (LIFI_API_KEY) headers["x-lifi-api-key"] = LIFI_API_KEY
-      const res = await fetch(`${COMPOSER_API}/v1/quote?${params}`, { headers, signal: AbortSignal.timeout(30000) })
+      if (PROXY_TOKEN) headers["x-cb-token"] = PROXY_TOKEN
+      const res = await fetch(`${COMPOSER_API}/quote?${params}`, { headers, signal: AbortSignal.timeout(30000) })
       const data = await res.json()
       if (!data.transactionRequest) {
         logger.warn("Build composable batch swap step failed", { params: params.toString(), status: res.status, message: data.message, error: data.error })
@@ -743,8 +746,8 @@ export async function buildComposableBatch(steps: Array<{ action: string; params
         allowDestinationCall: "true",
       })
       const headers: Record<string, string> = { accept: "application/json" }
-      if (LIFI_API_KEY) headers["x-lifi-api-key"] = LIFI_API_KEY
-      const res = await fetch(`${COMPOSER_API}/v1/quote?${params}`, { headers, signal: AbortSignal.timeout(30000) })
+      if (PROXY_TOKEN) headers["x-cb-token"] = PROXY_TOKEN
+      const res = await fetch(`${COMPOSER_API}/quote?${params}`, { headers, signal: AbortSignal.timeout(30000) })
       const data = await res.json()
       if (!data.transactionRequest) {
         logger.warn("Build composable batch deposit step failed", { params: params.toString(), status: res.status, message: data.message, error: data.error })
@@ -816,9 +819,9 @@ export async function fetchWalletBalances(walletAddress: string, chainIds: numbe
       chainIds: chainIds.join(","),
     });
     const headers: Record<string, string> = { accept: "application/json" };
-    if (LIFI_API_KEY) headers["x-lifi-api-key"] = LIFI_API_KEY;
+    if (PROXY_TOKEN) headers["x-cb-token"] = PROXY_TOKEN;
 
-    const res = await fetch(`https://li.quest/v1/wallets/${walletAddress}/balances?${params.toString()}`, { headers });
+    const res = await fetch(`${COMPOSER_API}/balances/${walletAddress}?${params.toString()}`, { headers });
     if (!res.ok) {
       logger.warn("LI.FI Balances API error", { status: res.status });
       return [];
@@ -884,7 +887,7 @@ export async function pollBridgeStatus(
   intervalMs = 10000,
 ): Promise<BridgeStatusResult> {
   const headers: Record<string, string> = { accept: "application/json" }
-  if (LIFI_API_KEY) headers["x-lifi-api-key"] = LIFI_API_KEY
+  if (PROXY_TOKEN) headers["x-cb-token"] = PROXY_TOKEN
 
   const params = new URLSearchParams({
     txHash,
@@ -894,7 +897,7 @@ export async function pollBridgeStatus(
 
   for (let i = 0; i < maxAttempts; i++) {
     try {
-      const res = await fetch(`${COMPOSER_API}/v1/status?${params}`, { headers, signal: AbortSignal.timeout(15000) })
+      const res = await fetch(`${COMPOSER_API}/status?${params}`, { headers, signal: AbortSignal.timeout(15000) })
       const data = await res.json()
 
       const result: BridgeStatusResult = {

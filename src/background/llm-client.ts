@@ -7,11 +7,11 @@ export interface ChatMessage {
   text: string
 }
 
-const GEMINI_API_KEY = process.env.PLASMO_PUBLIC_GEMINI_KEY || ""
-const QWEN_API_KEY = process.env.PLASMO_PUBLIC_QWEN_KEY || ""
+const API_BASE = process.env.PLASMO_PUBLIC_API_BASE || ""
+const PROXY_TOKEN = process.env.PLASMO_PUBLIC_PROXY_TOKEN || ""
 const GEMINI_MODEL = "gemini-2.5-flash"
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`
-const QWEN_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
+const GEMINI_URL = `${API_BASE}/api/llm/gemini`
+const QWEN_URL = `${API_BASE}/api/llm/qwen`
 const logger = createLogger("LLM")
 
 export type LLMError =
@@ -140,7 +140,7 @@ async function callQwen(contents: GeminiContent[], jsonMode = false): Promise<st
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${QWEN_API_KEY}`,
+      "x-cb-token": PROXY_TOKEN,
     },
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(30000),
@@ -180,7 +180,7 @@ async function tryGemini(contents: GeminiContent[], jsonMode: boolean): Promise<
 
   const res = await fetch(GEMINI_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "x-cb-token": PROXY_TOKEN },
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(30000),
   })
@@ -220,7 +220,7 @@ async function tryQwen(contents: GeminiContent[], jsonMode: boolean): Promise<st
 }
 
 async function callGeminiRaw(contents: GeminiContent[], jsonMode = false, retries = 2): Promise<string> {
-  const preferQwen = !!QWEN_API_KEY
+  const preferQwen = !!PROXY_TOKEN
   const geminiCooling = geminiBackoffUntil > Date.now()
   const qwenCooling = qwenBackoffUntil > Date.now()
   const primary = preferQwen ? "qwen" : "gemini"
@@ -253,7 +253,7 @@ async function callGeminiRaw(contents: GeminiContent[], jsonMode = false, retrie
         }
         if (result) return result
       }
-      if (QWEN_API_KEY && !qwenCooling) {
+      if (PROXY_TOKEN && !qwenCooling) {
         result = await tryQwen(contents, jsonMode)
         if (result) return result
       }

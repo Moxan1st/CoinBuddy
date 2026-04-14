@@ -13,8 +13,8 @@ export {
 
 // ─── LI.FI API ───
 
-export const LIFI_API_BASE = "https://li.quest"
-export const LIFI_API_KEY = process.env.PLASMO_PUBLIC_LIFI_KEY || ""
+export const LIFI_API_BASE = `${process.env.PLASMO_PUBLIC_API_BASE || ""}/api/lifi`
+export const PROXY_TOKEN = process.env.PLASMO_PUBLIC_PROXY_TOKEN || ""
 
 // ─── Price Watcher Defaults ───
 

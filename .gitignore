@@ -4,7 +4,18 @@ build
 .env
 *.pem
 landing/.next
+landing/.env
 landing/node_modules
 CLAUDE_IMPLEMENTATION_PLAN.md
 CODEX_PLAN_AGENT_PLANNER.md
 tsconfig.tsbuildinfo
+
+# Internal dev docs (keep local, don't publish)
+docs/WORKLOG.md
+docs/api-integration.md
+docs/architecture.md
+docs/project-overview.md
+docs/react-agent-implementation-plan.md
+docs/refactor-plan-codex.md
+CoinBuddy_PRD.md
+implementation_plan.md

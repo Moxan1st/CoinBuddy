@@ -14,7 +14,7 @@ import type { AgentWallet, Strategy, ExecutionResult } from "./types"
 import { createLogger } from "~lib/logger"
 import {
   LIFI_API_BASE,
-  LIFI_API_KEY,
+  PROXY_TOKEN,
   resolveTokenAddress,
   getTokenDecimals,
   toRawAmount,
@@ -25,7 +25,7 @@ const logger = createLogger("StrategyExecutor")
 
 function lifiHeaders(): Record<string, string> {
   const h: Record<string, string> = { accept: "application/json" }
-  if (LIFI_API_KEY) h["x-lifi-api-key"] = LIFI_API_KEY
+  if (PROXY_TOKEN) h["x-cb-token"] = PROXY_TOKEN
   return h
 }
 
@@ -33,7 +33,7 @@ function lifiHeaders(): Record<string, string> {
 
 async function getQuote(params: Record<string, string>): Promise<any> {
   const qs = new URLSearchParams(params).toString()
-  const url = `${LIFI_API_BASE}/v1/quote?${qs}`
+  const url = `${LIFI_API_BASE}/quote?${qs}`
   logger.info("Requesting LI.FI quote", { url })
 
   const res = await fetch(url, {
